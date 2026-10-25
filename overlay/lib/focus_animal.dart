@@ -60,12 +60,12 @@ class _FocusAnimalState extends State<FocusAnimal>
         right: widget.size * 0.15 + p * 20,
         top: widget.size * 0.55 - p * widget.size * 0.5,
         child: Opacity(
-          opacity: sin(p * pi).clamp(0.0, 1.0),
+          opacity: sin(p * pi).clamp(0.0, 1.0).toDouble(),
           child: Text('Z',
               style: TextStyle(
                   fontSize: 14 + p * 16,
                   fontWeight: FontWeight.w800,
-                  color: animalColors[widget.animal]!.withOpacity(0.9))),
+                  color: animalColors[widget.animal]!.withAlpha(230))),
         ),
       );
 }
@@ -83,7 +83,7 @@ class _AuraPainter extends CustomPainter {
           s.center(Offset.zero),
           s.width * (0.3 + 0.2 * p),
           Paint()
-            ..color = color.withOpacity(0.25 * (1 - p))
+            ..color = color.withAlpha((255 * 0.25 * (1 - p)).round())
             ..style = PaintingStyle.stroke
             ..strokeWidth = 6);
     }
@@ -103,6 +103,7 @@ class _AnimalPainter extends CustomPainter {
     final c = s.center(Offset.zero);
     final r = s.width * 0.32;
     final fill = Paint()..color = color;
+    final nose = Paint()..color = const Color(0xFF4A3B5C);
     final dark = Paint()
       ..color = const Color(0xFF4A3B5C)
       ..style = PaintingStyle.stroke
@@ -157,7 +158,7 @@ class _AnimalPainter extends CustomPainter {
       final e = Offset(c.dx + d * r * 0.45, c.dy + 2);
       canvas.drawArc(Rect.fromCenter(center: e, width: 22, height: 14), 0, pi, false, dark);
       canvas.drawCircle(e.translate(d * 8.0, 20), 9,
-          Paint()..color = const Color(0xFFFF8FAB).withOpacity(0.55));
+          Paint()..color = const Color(0x8CFF8FAB));
     }
     canvas.drawArc(Rect.fromCenter(center: c.translate(0, 22), width: 14, height: 10), 0, pi, false, dark);
 
@@ -166,9 +167,8 @@ class _AnimalPainter extends CustomPainter {
       canvas.drawOval(Rect.fromCenter(center: c.translate(0, 14), width: 34, height: 22),
           Paint()..color = const Color(0xFFFF8FAB));
       for (final d in [-1, 1]) {
-        canvas.drawCircle(c.translate(d * 6.0, 14), 2.5, dark..style = PaintingStyle.fill);
+        canvas.drawCircle(c.translate(d * 6.0, 14), 2.5, nose);
       }
-      dark.style = PaintingStyle.stroke;
     }
 
     // Manitos juntas (meditación)

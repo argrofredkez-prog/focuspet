@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'focus_animal.dart';
 
@@ -26,7 +25,7 @@ class FocusPetApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(useMaterial3: true, textTheme: GoogleFonts.nunitoTextTheme()),
+        theme: ThemeData(useMaterial3: true),
         home: const HomeScreen(),
       );
 }
@@ -83,6 +82,8 @@ class _HomeState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: _bg(animal),
           child: SafeArea(
             child: Column(children: [
@@ -226,6 +227,8 @@ class _FocusState extends State<FocusScreen> {
       canPop: false,
       child: Scaffold(
         body: Container(
+          width: double.infinity,
+          height: double.infinity,
           decoration: _bg(widget.animal),
           child: SafeArea(
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
