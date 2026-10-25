@@ -156,7 +156,7 @@ class _AnimalPainter extends CustomPainter {
     for (final d in [-1, 1]) {
       final e = Offset(c.dx + d * r * 0.45, c.dy + 2);
       canvas.drawArc(Rect.fromCenter(center: e, width: 22, height: 14), 0, pi, false, dark);
-      canvas.drawCircle(e.translate(d * 8, 20), 9,
+      canvas.drawCircle(e.translate(d * 8.0, 20), 9,
           Paint()..color = const Color(0xFFFF8FAB).withOpacity(0.55));
     }
     canvas.drawArc(Rect.fromCenter(center: c.translate(0, 22), width: 14, height: 10), 0, pi, false, dark);
@@ -166,7 +166,7 @@ class _AnimalPainter extends CustomPainter {
       canvas.drawOval(Rect.fromCenter(center: c.translate(0, 14), width: 34, height: 22),
           Paint()..color = const Color(0xFFFF8FAB));
       for (final d in [-1, 1]) {
-        canvas.drawCircle(c.translate(d * 6, 14), 2.5, dark..style = PaintingStyle.fill);
+        canvas.drawCircle(c.translate(d * 6.0, 14), 2.5, dark..style = PaintingStyle.fill);
       }
       dark.style = PaintingStyle.stroke;
     }

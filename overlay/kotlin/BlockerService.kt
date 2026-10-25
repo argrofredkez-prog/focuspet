@@ -24,7 +24,7 @@ class BlockerService : AccessibilityService() {
             "com.samsung.android.incallui", "com.android.incallui"
         )
 
-        fun setBlocking(b: Boolean) {
+        fun block(b: Boolean) {
             handler.removeCallbacks(resume)
             blocking = b
         }

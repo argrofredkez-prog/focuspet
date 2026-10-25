@@ -18,7 +18,7 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "setBlocking" -> {
-                        BlockerService.setBlocking(call.arguments as Boolean)
+                        BlockerService.block(call.arguments as Boolean)
                         result.success(null)
                     }
                     "pause" -> {
