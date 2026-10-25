@@ -1,24 +1,41 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'animal_background.dart';
+import 'data.dart';
 import 'focus_animal.dart';
+import 'shop.dart';
+import 'widgets.dart';
 
 const _ch = MethodChannel('focuspet/blocker');
 const maxPauses = 3, pauseMinutes = 5;
-const _ink = Color(0xFF4A3B5C);
-const _emoji = {Animal.cerdo: '🐷', Animal.unicornio: '🦄', Animal.tigre: '🐯', Animal.pantera: '🐈‍⬛'};
 
-BoxDecoration _bg(Animal a) => BoxDecoration(
-    gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [animalColors[a]!, Color.lerp(animalColors[a], Colors.white, .75)!]));
+const defaultPhrases = [
+  '¡Tú puedes! Ya llevas parte del camino 💪',
+  'Respira. Un poco más y lo logras ✨',
+  'Tu yo del futuro te dará las gracias 💖',
+  'Ahora no toca el móvil, toca brillar 🌟',
+];
+
+List<String> loadPhrases() =>
+    List<String>.from(store.p.getStringList('phrases') ?? defaultPhrases);
+
+void savePhrases(List<String> l) {
+  store.p.setStringList('phrases', l);
+}
+
+String _dur(int m) => m >= 60 ? '${m ~/ 60} h ${m % 60} min' : '$m min';
 
 String _fmt(int s) =>
     '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
-void main() => runApp(const FocusPetApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  store = Store(await SharedPreferences.getInstance());
+  runApp(const FocusPetApp());
+}
 
 class FocusPetApp extends StatelessWidget {
   const FocusPetApp({super.key});
@@ -30,6 +47,7 @@ class FocusPetApp extends StatelessWidget {
       );
 }
 
+// ======================= INICIO =======================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -37,19 +55,64 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeState extends State<HomeScreen> {
-  Animal animal = Animal.cerdo;
-  double minutes = 25;
-  int coins = 0;
+  Animal animal = Animal.values[store.p.getInt('animal') ?? 0];
+  int mode = (DateTime.now().hour >= 22 || DateTime.now().hour < 6) ? 2 : 0;
+  late double minutes = mode == 2 ? 480.0 : 25.0;
+  String? bubble;
+  Timer? _bt;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
+    for (int id = 1; id <= 3; id++) {
+      final v = store.rem(id);
+      if (v >= 0) _ch.invokeMethod('setReminder', {'id': id, 'h': v ~/ 60, 'm': v % 60});
+    }
   }
 
-  Future<void> _load() async {
-    final p = await SharedPreferences.getInstance();
-    setState(() => coins = p.getInt('coins') ?? 0);
+  @override
+  void dispose() {
+    _bt?.cancel();
+    super.dispose();
+  }
+
+  // Al tocar al animal dice una frase en un bocadillo
+  void _talk() {
+    final p = loadPhrases();
+    if (p.isEmpty) return;
+    setState(() => bubble = p[Random().nextInt(p.length)]);
+    _bt?.cancel();
+    _bt = Timer(const Duration(seconds: 5), () {
+      if (mounted) setState(() => bubble = null);
+    });
+  }
+
+  void _stats() {
+    showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+              title: const Text('Mi día 📊'),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < 3; i++)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Text(
+                            '${modeEmoji[i]} ${modeNames[i]}: hoy ${_dur(store.minsToday(i))} · total ${_dur(store.minsTotal(i))}'),
+                      ),
+                  ]),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cerrar'))
+              ],
+            ));
+  }
+
+  Future<void> _go(Widget w) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => w));
+    if (mounted) setState(() {});
   }
 
   Future<void> _start() async {
@@ -73,88 +136,408 @@ class _HomeState extends State<HomeScreen> {
               ));
       return;
     }
+    final strict = mode == 2 ? true : store.strict;
+    final pkgs = strict
+        ? <String>[]
+        : store.allowed.map((e) => e.substring(0, e.indexOf('|'))).toList();
+    await _ch.invokeMethod('setAllowed', pkgs);
     if (!mounted) return;
-    await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => FocusScreen(animal: animal, minutes: minutes.round())));
-    _load();
+    await _go(FocusScreen(
+        animal: animal,
+        minutes: minutes.round(),
+        phrases: loadPhrases(),
+        mode: mode,
+        strict: strict));
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: _bg(animal),
-          child: SafeArea(
+  Widget build(BuildContext context) {
+    final scene = store.scene(animal);
+    final ink = inkFor(animal, scene);
+    final st = stageOf(store.xp(animal));
+    Widget icon(String e, VoidCallback f) =>
+        IconButton(onPressed: f, icon: Text(e, style: const TextStyle(fontSize: 26)));
+    return Scaffold(
+      body: AnimalBackground(
+        animal: animal,
+        scene: scene,
+        child: SafeArea(
+          child: SingleChildScrollView(
             child: Column(children: [
-              const SizedBox(height: 16),
-              Text('🪙 $coins',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: _ink)),
-              const Spacer(),
-              FocusAnimal(animal: animal, size: 200),
-              const Spacer(),
+              Row(children: [
+                const SizedBox(width: 16),
+                Text('🪙 ${store.coins}',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ink)),
+                const Spacer(),
+                icon('🛒', () => _go(ShopScreen(animal: animal))),
+                icon('📊', _stats),
+                icon('💬', () => _go(PhrasesScreen(animal: animal))),
+                icon('⚙️', () => _go(const SettingsScreen())),
+              ]),
+              GestureDetector(
+                onTap: _talk,
+                child: SizedBox(
+                height: 230,
+                child: Center(
+                  child: FittedBox(
+                    child: FocusAnimal(
+                        animal: animal,
+                        size: 200,
+                        scale: stageScale[st],
+                        mode: mode,
+                        accessory: store.accEmoji(animal)),
+                  ),
+                ),
+              ),
+              ),
+              SizedBox(
+                  height: 70,
+                  child: bubble == null ? null : Center(child: ComicBubble(text: bubble!))),
+              PetStats(animal: animal, ink: ink),
+              const SizedBox(height: 8),
               Wrap(spacing: 8, children: [
                 for (final a in Animal.values)
                   ChoiceChip(
-                      label: Text(_emoji[a]!, style: const TextStyle(fontSize: 26)),
+                      label: Text(emojiOf[a]!, style: const TextStyle(fontSize: 26)),
                       selected: a == animal,
-                      onSelected: (_) => setState(() => animal = a)),
+                      onSelected: (_) {
+                        setState(() => animal = a);
+                        store.p.setInt('animal', a.index);
+                      }),
               ]),
-              const SizedBox(height: 16),
-              Text('${minutes.round()} min',
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: _ink)),
+              Wrap(spacing: 8, children: [
+                for (int i = 0; i < 3; i++)
+                  ChoiceChip(
+                      label: Text('${modeEmoji[i]} ${modeNames[i]}'),
+                      selected: mode == i,
+                      onSelected: (_) => setState(() {
+                            mode = i;
+                            minutes = i == 2 ? 480.0 : 25.0;
+                          })),
+              ]),
+              Text(_dur(minutes.round()),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: ink)),
               Slider(
                   value: minutes,
-                  min: 15,
-                  max: 180,
-                  divisions: 33,
-                  activeColor: _ink,
+                  min: mode == 2 ? 240.0 : 15.0,
+                  max: mode == 2 ? 600.0 : 180.0,
+                  divisions: mode == 2 ? 24 : 33,
+                  activeColor: ink,
+                  inactiveColor: Colors.white54,
                   onChanged: (v) => setState(() => minutes = v)),
+              Text(
+                  mode == 2
+                      ? '🔒 Todo bloqueado mientras duermes'
+                      : (store.strict
+                          ? '🔒 Modo estricto'
+                          : '🔓 Modo flexible · 3 apps · mitad de monedas'),
+                  style: TextStyle(fontSize: 14, color: ink)),
               const SizedBox(height: 8),
               FilledButton(
                   style: FilledButton.styleFrom(
-                      backgroundColor: _ink,
+                      backgroundColor: ink,
+                      foregroundColor: ink == Colors.white ? kInk : Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16)),
                   onPressed: _start,
-                  child: const Text('Concentrarme ✨', style: TextStyle(fontSize: 20))),
-              const SizedBox(height: 32),
+                  child: Text(mode == 2 ? 'Buenas noches 🌙' : 'Concentrarme ✨',
+                      style: const TextStyle(fontSize: 20))),
+              const SizedBox(height: 24),
             ]),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
+// ======================= AJUSTES =======================
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+  @override
+  State<SettingsScreen> createState() => _SettingsState();
+}
+
+class _SettingsState extends State<SettingsScreen> {
+  Future<void> _pickApps() async {
+    final raw = await _ch.invokeMethod<List<dynamic>>('getApps') ?? <dynamic>[];
+    final apps = raw.map((e) => Map<String, String>.from(e as Map)).toList();
+    final sel = store.allowed.toSet();
+    if (!mounted) return;
+    await showDialog(
+        context: context,
+        builder: (c) => StatefulBuilder(
+              builder: (c, setS) => AlertDialog(
+                title: Text('Elige hasta 3 apps (${sel.length}/3)'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  height: 360,
+                  child: ListView(children: [
+                    for (final a in apps)
+                      CheckboxListTile(
+                          title: Text(a['name']!),
+                          value: sel.contains('${a['pkg']}|${a['name']}'),
+                          onChanged: (v) {
+                            final k = '${a['pkg']}|${a['name']}';
+                            setS(() {
+                              if (v == true) {
+                                if (sel.length < 3) sel.add(k);
+                              } else {
+                                sel.remove(k);
+                              }
+                            });
+                          }),
+                  ]),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(c), child: const Text('Listo'))
+                ],
+              ),
+            ));
+    store.p.setStringList('allowed', sel.toList());
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _pickRem(int id) async {
+    final cur = store.rem(id);
+    final t = await showTimePicker(
+        context: context,
+        initialTime: cur < 0
+            ? const TimeOfDay(hour: 18, minute: 0)
+            : TimeOfDay(hour: cur ~/ 60, minute: cur % 60));
+    if (t == null) return;
+    store.p.setInt('r$id', t.hour * 60 + t.minute);
+    _ch.invokeMethod('setReminder', {'id': id, 'h': t.hour, 'm': t.minute});
+    if (mounted) setState(() {});
+  }
+
+  Widget _remTile(int id, String name, String hint) {
+    final v = store.rem(id);
+    return ListTile(
+      title: Text('Aviso de $name'),
+      subtitle: Text(v < 0 ? 'Desactivado · toca para elegir hora' : '${_fmt(v)} cada día$hint'),
+      trailing: v < 0
+          ? const Icon(Icons.chevron_right)
+          : IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                store.p.setInt('r$id', -1);
+                _ch.invokeMethod('cancelReminder', id);
+                setState(() {});
+              }),
+      onTap: () => _pickRem(id),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final names = store.allowed.map((e) => e.substring(e.indexOf('|') + 1)).join(', ');
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ajustes ⚙️')),
+      body: ListView(children: [
+        SwitchListTile(
+          title: const Text('Modo estricto 🔒'),
+          subtitle: const Text(
+              'Desactivado: puedes usar hasta 3 apps durante la sesión y ganas la mitad de monedas.'),
+          value: store.strict,
+          onChanged: (v) {
+            store.p.setBool('strict', v);
+            setState(() {});
+          },
+        ),
+        if (!store.strict)
+          ListTile(
+            title: Text('Apps permitidas (${store.allowed.length}/3)'),
+            subtitle: Text(names.isEmpty ? 'Toca para elegir' : names),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickApps,
+          ),
+        _remTile(1, 'dormir 🌙', ' (menos viernes y sábado)'),
+        _remTile(3, 'estudiar 📚', ''),
+        _remTile(2, 'entrenar 🏋️', ''),
+      ]),
+    );
+  }
+}
+
+// ======================= FRASES =======================
+class PhrasesScreen extends StatefulWidget {
+  final Animal animal;
+  const PhrasesScreen({super.key, required this.animal});
+  @override
+  State<PhrasesScreen> createState() => _PhrasesState();
+}
+
+class _PhrasesState extends State<PhrasesScreen> {
+  List<String> phrases = loadPhrases();
+  final ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    ctrl.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    final t = ctrl.text.trim();
+    if (t.isEmpty) return;
+    setState(() {
+      phrases.add(t);
+      ctrl.clear();
+    });
+    savePhrases(phrases);
+  }
+
+  void _del(int i) {
+    setState(() => phrases.removeAt(i));
+    savePhrases(phrases);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scene = store.scene(widget.animal);
+    final ink = inkFor(widget.animal, scene);
+    return Scaffold(
+      appBar: AppBar(
+          title: const Text('Mis frases 💬'),
+          backgroundColor: animalColors[widget.animal],
+          foregroundColor: ink),
+      body: AnimalBackground(
+        animal: widget.animal,
+        scene: scene,
+        child: SafeArea(
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: ctrl,
+                    maxLength: 80,
+                    onSubmitted: (_) => _add(),
+                    decoration: InputDecoration(
+                        hintText: 'Una frase que te anime…',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            borderSide: BorderSide.none)),
+                  ),
+                ),
+                IconButton.filled(onPressed: _add, icon: const Icon(Icons.add)),
+              ]),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: phrases.length,
+                itemBuilder: (_, i) => Row(children: [
+                  Expanded(child: ChatBubble(animal: widget.animal, text: phrases[i])),
+                  IconButton(onPressed: () => _del(i), icon: Icon(Icons.close, color: ink)),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ======================= SESIÓN =======================
 class FocusScreen extends StatefulWidget {
   final Animal animal;
   final int minutes;
-  const FocusScreen({super.key, required this.animal, required this.minutes});
+  final List<String> phrases;
+  final bool strict;
+  final int mode; // 0 estudiar, 1 entrenar, 2 dormir
+  const FocusScreen({
+    super.key,
+    required this.animal,
+    required this.minutes,
+    required this.phrases,
+    required this.mode,
+    required this.strict,
+  });
   @override
   State<FocusScreen> createState() => _FocusState();
 }
 
-class _FocusState extends State<FocusScreen> {
+class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   late DateTime endAt = DateTime.now().add(Duration(minutes: widget.minutes));
   late final int total = widget.minutes * 60;
   late int remaining = total;
+  late final List<String> phrases = List<String>.from(widget.phrases);
+  final List<MapEntry<int, String>> chat = [];
+  final Random _rnd = Random();
+  int _n = 0;
   DateTime? pauseStart;
   int pausesUsed = 0;
   Timer? _t;
+  Timer? _chatT;
+  bool done = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _ch.invokeMethod('setBlocking', true);
+    _ch.invokeMethod('lockScreen'); // apaga la pantalla
     _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    if (widget.mode != 2) {
+      _chatT = Timer.periodic(const Duration(seconds: 45), (_) => _say());
+      Future.delayed(const Duration(seconds: 1), () => _say());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _t?.cancel();
+    _chatT?.cancel();
     _ch.invokeMethod('setBlocking', false);
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  void _say([String? text]) {
+    if (!mounted) return;
+    if (text == null && phrases.isEmpty) return;
+    final msg = text ?? phrases[_rnd.nextInt(phrases.length)];
+    setState(() {
+      chat.add(MapEntry(_n++, msg));
+      if (chat.length > 2) chat.removeAt(0);
+    });
+  }
+
+  Future<void> _addPhrase() async {
+    final ctrl = TextEditingController();
+    final text = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+              title: const Text('Nueva frase 💬'),
+              content: TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  maxLength: 80,
+                  decoration: const InputDecoration(hintText: 'Escribe algo que te anime…')),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(c), child: const Text('Cancelar')),
+                TextButton(
+                    onPressed: () => Navigator.pop(c, ctrl.text.trim()),
+                    child: const Text('Guardar')),
+              ],
+            ));
+    if (text == null || text.isEmpty || !mounted) return;
+    phrases.add(text);
+    savePhrases(phrases);
+    _say(text);
+  }
+
   void _tick() {
+    if (done) return;
     final now = DateTime.now();
     if (pauseStart != null) {
       if (now.difference(pauseStart!).inSeconds >= pauseMinutes * 60) {
@@ -188,29 +571,49 @@ class _FocusState extends State<FocusScreen> {
   }
 
   Future<void> _complete() async {
+    if (done) return;
+    done = true;
     _t?.cancel();
     await _ch.invokeMethod('setBlocking', false);
-    final earned = widget.minutes ~/ 5;
-    final p = await SharedPreferences.getInstance();
-    await p.setInt('coins', (p.getInt('coins') ?? 0) + earned);
+    final base = widget.mode == 2 ? widget.minutes / 10 : widget.minutes / 5;
+    final earned = (base * (widget.strict ? 1.0 : 0.5)).round();
+    store.coins = store.coins + earned;
+    store.addMins(widget.mode, widget.minutes);
+    var extra = '';
+    final xp = widget.mode == 1
+        ? widget.minutes ~/ 10
+        : (widget.mode == 2 ? widget.minutes ~/ 60 : 0);
+    if (xp > 0) {
+      store.addXp(widget.animal, xp);
+      extra = '  y +$xp ⭐';
+    }
     if (!mounted) return;
     await showDialog(
         context: context,
         builder: (_) => AlertDialog(
-            title: const Text('¡Sesión completada! 🎉'),
-            content: Text('Has ganado $earned 🪙')));
+            title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
+            content: Text('Has ganado $earned 🪙$extra')));
     if (mounted) Navigator.pop(context);
   }
 
   Future<void> _abandon() async {
+    final msg = phrases.isEmpty
+        ? '¿Seguro? Estás muy cerca 🥺'
+        : phrases[_rnd.nextInt(phrases.length)];
     final yes = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
               title: const Text('¿Abandonar? 🥺'),
-              content: const Text('Perderás la recompensa de esta sesión.'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                ComicBubble(text: msg),
+                const SizedBox(height: 8),
+                const Text('Perderás la recompensa de esta sesión.'),
+              ]),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Seguir')),
-                TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Abandonar')),
+                FilledButton(
+                    onPressed: () => Navigator.pop(c, false), child: const Text('Seguir 💪')),
+                TextButton(
+                    onPressed: () => Navigator.pop(c, true), child: const Text('Abandonar')),
               ],
             ));
     if (yes == true && mounted) {
@@ -223,41 +626,75 @@ class _FocusState extends State<FocusScreen> {
   Widget build(BuildContext context) {
     final paused = pauseStart != null;
     final left = maxPauses - pausesUsed;
+    final scene = widget.mode == 2 ? 2 : store.scene(widget.animal);
+    final ink = inkFor(widget.animal, scene);
     return PopScope(
       canPop: false,
       child: Scaffold(
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: _bg(widget.animal),
+        body: AnimalBackground(
+          animal: widget.animal,
+          scene: scene,
           child: SafeArea(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Stack(alignment: Alignment.center, children: [
-                SizedBox(
-                    width: 280,
-                    height: 280,
-                    child: CircularProgressIndicator(
-                        value: 1 - remaining / total,
-                        strokeWidth: 10,
-                        strokeCap: StrokeCap.round,
-                        color: _ink,
-                        backgroundColor: Colors.white54)),
-                FocusAnimal(animal: widget.animal, size: 160),
-              ]),
-              const SizedBox(height: 24),
-              Text(_fmt(remaining),
-                  style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w800, color: _ink)),
-              Text(
-                  paused
-                      ? 'Pausa: ${_fmt(pauseMinutes * 60 - DateTime.now().difference(pauseStart!).inSeconds)}'
-                      : 'Shhh… descansando 💤',
-                  style: const TextStyle(fontSize: 16, color: _ink)),
-              const SizedBox(height: 32),
-              FilledButton.tonal(
-                  onPressed: paused ? _resume : (left > 0 ? _pause : null),
-                  child: Text(paused ? 'Reanudar' : 'Pausar ($left/$maxPauses)')),
-              TextButton(onPressed: _abandon, child: const Text('Abandonar')),
-            ]),
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Stack(alignment: Alignment.center, children: [
+                    SizedBox(
+                        width: 250,
+                        height: 250,
+                        child: CircularProgressIndicator(
+                            value: 1 - remaining / total,
+                            strokeWidth: 10,
+                            strokeCap: StrokeCap.round,
+                            color: ink,
+                            backgroundColor: Colors.white38)),
+                    FocusAnimal(
+                        animal: widget.animal,
+                        size: 150,
+                        scale: stageScale[stageOf(store.xp(widget.animal))],
+                        mode: widget.mode,
+                        accessory: store.accEmoji(widget.animal)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Text(_fmt(remaining),
+                      style: TextStyle(fontSize: 52, fontWeight: FontWeight.w800, color: ink)),
+                  Text(
+                      paused
+                          ? 'Pausa: ${_fmt(pauseMinutes * 60 - DateTime.now().difference(pauseStart!).inSeconds)}'
+                          : ['Estudiando 📚', 'Entrenando 💪', 'Durmiendo 😴 Buenas noches'][widget.mode],
+                      style: TextStyle(fontSize: 16, color: ink)),
+                  const SizedBox(height: 12),
+                  for (final m in chat)
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey(m.key),
+                      tween: Tween<double>(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 500),
+                      builder: (_, v, child) => Opacity(opacity: v, child: child),
+                      child: ComicBubble(text: m.value),
+                    ),
+                  const SizedBox(height: 12),
+                  if (!widget.strict && store.allowed.isNotEmpty)
+                    Wrap(spacing: 6, children: [
+                      for (final e in store.allowed)
+                        ActionChip(
+                            label: Text('📱 ${e.substring(e.indexOf('|') + 1)}'),
+                            onPressed: () =>
+                                _ch.invokeMethod('launchApp', e.substring(0, e.indexOf('|')))),
+                    ]),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    FilledButton.tonal(
+                        onPressed: paused ? _resume : (left > 0 ? _pause : null),
+                        child: Text(paused ? 'Reanudar' : 'Pausar ($left/$maxPauses)')),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                        onPressed: _addPhrase, icon: const Icon(Icons.chat_bubble_outline)),
+                  ]),
+                  TextButton(
+                      onPressed: _abandon,
+                      child: Text('Abandonar', style: TextStyle(color: ink))),
+                ]),
+              ),
+            ),
           ),
         ),
       ),
