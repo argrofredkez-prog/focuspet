@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'animal_background.dart';
 import 'data.dart';
 import 'focus_animal.dart';
+import 'cycle.dart';
+import 'mood.dart';
+import 'review.dart';
 import 'shop.dart';
 import 'widgets.dart';
 
@@ -65,7 +68,7 @@ class _HomeState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
-    for (int id = 1; id <= 3; id++) {
+    for (final id in [1, 2, 3, 4, 5, 6, 7, 8]) {
       final v = store.rem(id);
       if (v >= 0) _ch.invokeMethod('setReminder', {'id': id, 'h': v ~/ 60, 'm': v % 60});
     }
@@ -86,6 +89,38 @@ class _HomeState extends State<HomeScreen> {
     _bt = Timer(const Duration(seconds: 5), () {
       if (mounted) setState(() => bubble = null);
     });
+  }
+
+  // Menú con las herramientas extra
+  void _more() {
+    showModalBottomSheet(
+      context: context,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+              leading: const Text('📊', style: TextStyle(fontSize: 26)),
+              title: const Text('Mi día'),
+              onTap: () {
+                Navigator.pop(c);
+                _stats();
+              }),
+          ListTile(
+              leading: const Text('😊', style: TextStyle(fontSize: 26)),
+              title: const Text('Estados de ánimo'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(const MoodScreen());
+              }),
+          ListTile(
+              leading: const Text('🌸', style: TextStyle(fontSize: 26)),
+              title: const Text('Ciclo: regla y ovulación'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(const CycleScreen());
+              }),
+        ]),
+      ),
+    );
   }
 
   void _stats() {
@@ -155,8 +190,11 @@ class _HomeState extends State<HomeScreen> {
     final scene = store.scene(animal);
     final ink = inkFor(animal, scene);
     final st = stageOf(store.xp(animal));
-    Widget icon(String e, VoidCallback f) =>
-        IconButton(onPressed: f, icon: Text(e, style: const TextStyle(fontSize: 26)));
+    Widget icon(String e, VoidCallback f) => IconButton(
+        onPressed: f,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        icon: Text(e, style: const TextStyle(fontSize: 24)));
     return Scaffold(
       body: AnimalBackground(
         animal: animal,
@@ -170,7 +208,8 @@ class _HomeState extends State<HomeScreen> {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ink)),
                 const Spacer(),
                 icon('🛒', () => _go(ShopScreen(animal: animal))),
-                icon('📊', _stats),
+                icon('➕', _more),
+                icon(store.dueCount > 0 ? '🧠${store.dueCount}' : '🧠', () => _go(const ReviewScreen())),
                 icon('💬', () => _go(PhrasesScreen(animal: animal))),
                 icon('⚙️', () => _go(const SettingsScreen())),
               ]),
@@ -185,7 +224,7 @@ class _HomeState extends State<HomeScreen> {
                         size: 200,
                         scale: stageScale[st],
                         mode: mode,
-                        accessory: store.accEmoji(animal)),
+                        acc: store.accIds(animal)),
                   ),
                 ),
               ),
@@ -351,9 +390,14 @@ class _SettingsState extends State<SettingsScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: _pickApps,
           ),
-        _remTile(1, 'dormir 🌙', ' (menos viernes y sábado)'),
-        _remTile(3, 'estudiar 📚', ''),
-        _remTile(2, 'entrenar 🏋️', ''),
+        _remTile(3, 'estudiar 📚 · 1.º', ''),
+        _remTile(7, 'estudiar 📚 · 2.º', ''),
+        _remTile(2, 'entrenar 🏋️ · 1.º', ''),
+        _remTile(6, 'entrenar 🏋️ · 2.º', ''),
+        _remTile(1, 'dormir 🌙 · 1.º', ' (menos viernes y sábado)'),
+        _remTile(5, 'dormir 🌙 · 2.º', ' (menos viernes y sábado)'),
+        _remTile(4, 'repasar 🧠', ''),
+        _remTile(8, 'registrar ánimo 😊', ''),
       ]),
     );
   }
@@ -481,6 +525,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _ch.invokeMethod('setBlocking', true);
     _ch.invokeMethod('lockScreen'); // apaga la pantalla
+    _scheduleEnd();
     _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     if (widget.mode != 2) {
       _chatT = Timer.periodic(const Duration(seconds: 45), (_) => _say());
@@ -493,6 +538,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _t?.cancel();
     _chatT?.cancel();
+    _ch.invokeMethod('cancelEnd');
     _ch.invokeMethod('setBlocking', false);
     super.dispose();
   }
@@ -500,6 +546,12 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  // Avisa (y vibra) al terminar aunque la pantalla esté apagada
+  void _scheduleEnd() {
+    _ch.invokeMethod('scheduleEnd',
+        {'at': endAt.millisecondsSinceEpoch, 'v': widget.mode != 2, 'mode': widget.mode});
   }
 
   void _say([String? text]) {
@@ -558,6 +610,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   void _pause() {
     if (pausesUsed >= maxPauses) return;
     _ch.invokeMethod('pause', pauseMinutes * 60 * 1000);
+    _ch.invokeMethod('cancelEnd');
     setState(() {
       pausesUsed++;
       pauseStart = DateTime.now();
@@ -566,6 +619,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
 
   void _resume() {
     endAt = endAt.add(DateTime.now().difference(pauseStart!)); // la pausa no cuenta
+    _scheduleEnd();
     _ch.invokeMethod('setBlocking', true);
     setState(() => pauseStart = null);
   }
@@ -574,6 +628,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     if (done) return;
     done = true;
     _t?.cancel();
+    _ch.invokeMethod('cancelEnd');
     await _ch.invokeMethod('setBlocking', false);
     final base = widget.mode == 2 ? widget.minutes / 10 : widget.minutes / 5;
     final earned = (base * (widget.strict ? 1.0 : 0.5)).round();
@@ -653,7 +708,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                         size: 150,
                         scale: stageScale[stageOf(store.xp(widget.animal))],
                         mode: widget.mode,
-                        accessory: store.accEmoji(widget.animal)),
+                        acc: store.accIds(widget.animal)),
                   ]),
                   const SizedBox(height: 12),
                   Text(_fmt(remaining),

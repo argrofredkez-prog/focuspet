@@ -422,6 +422,14 @@ class _BgPainter extends CustomPainter {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [Color(0x66FF7EB3), Color(0xAAFF9A3D)]).createShader(r));
+    } else if (scene == 3) {
+      c.drawRect(
+          r,
+          Paint()
+            ..shader = const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0x66FFD166), Color(0x88FF8FB8)]).createShader(r));
     } else if (scene == 2) {
       c.drawRect(r, Paint()..color = const Color(0xB00B1040));
       for (int i = 0; i < 26; i++) {

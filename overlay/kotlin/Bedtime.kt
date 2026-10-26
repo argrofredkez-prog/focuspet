@@ -49,7 +49,7 @@ object Bedtime {
     }
 
     fun restoreAll(ctx: Context) {
-        for (id in 1..3) {
+        for (id in 1..8) {
             val t = prefs(ctx).getInt("r$id", -1)
             if (t >= 0) schedule(ctx, id, t / 60, t % 60)
         }
@@ -84,15 +84,18 @@ class BedtimeReceiver : BroadcastReceiver() {
         val h = intent?.getIntExtra("h", 23) ?: 23
         val m = intent?.getIntExtra("m", 30) ?: 30
         val d = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
-        when (id) {
+        val kind = if (id in 5..7) id - 4 else id // 5-7 = 2.º aviso de dormir/entrenar/estudiar
+        when (kind) {
             1 -> {
                 // Viernes y sábado por la noche no se avisa (fin de semana)
                 if (d != Calendar.FRIDAY && d != Calendar.SATURDAY) {
-                    Bedtime.notifyText(context, 1, "🌙 Hora de dormir", "Abre la app y empieza el modo dormir 😴")
+                    Bedtime.notifyText(context, id, "🌙 Hora de dormir", "Abre la app y empieza el modo dormir 😴")
                 }
             }
-            2 -> Bedtime.notifyText(context, 2, "🏋️ Hora de entrenar", "¡Muévete un poco, tu animal y tú lo merecéis!")
-            else -> Bedtime.notifyText(context, 3, "📚 Hora de estudiar", "Abre la app y empieza tu sesión de estudio ✨")
+            2 -> Bedtime.notifyText(context, id, "🏋️ Hora de entrenar", "¡Muévete un poco, tu animal y tú lo merecéis!")
+            4 -> Bedtime.notifyText(context, id, "🧠 Hora de repasar", "Mira qué temas te tocan repasar hoy")
+            8 -> Bedtime.notifyText(context, id, "😊 ¿Cómo te sientes hoy?", "Registra tu estado de ánimo en focuspet")
+            else -> Bedtime.notifyText(context, id, "📚 Hora de estudiar", "Abre la app y empieza tu sesión de estudio ✨")
         }
         Bedtime.schedule(context, id, h, m)
     }

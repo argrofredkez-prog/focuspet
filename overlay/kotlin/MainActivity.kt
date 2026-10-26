@@ -65,6 +65,18 @@ class MainActivity : FlutterActivity() {
                         Bedtime.cancel(applicationContext, (call.arguments as Number).toInt())
                         result.success(null)
                     }
+                    "scheduleEnd" -> {
+                        val m = call.arguments as Map<*, *>
+                        EndAlarm.schedule(
+                            applicationContext, (m["at"] as Number).toLong(),
+                            m["v"] as Boolean, (m["mode"] as Number).toInt()
+                        )
+                        result.success(null)
+                    }
+                    "cancelEnd" -> {
+                        EndAlarm.cancel(applicationContext)
+                        result.success(null)
+                    }
                     "setupBedtime" -> {
                         if (Build.VERSION.SDK_INT >= 33 &&
                             checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED

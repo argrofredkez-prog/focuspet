@@ -132,3 +132,8 @@ class _BubblePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+/// Icono de un artículo: emoji o su dibujo.
+Widget itemIcon(Item it, {double size = 30}) => it.img != null
+    ? Image.memory(it.img!, width: size, height: size)
+    : Text(it.emoji, style: TextStyle(fontSize: size));
