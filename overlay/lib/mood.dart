@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
 import 'data.dart';
 
-const moodFaces = ['😄', '🙂', '😐', '😕', '😢'];
-const moodLabels = ['Genial', 'Bien', 'Normal', 'Bajo', 'Mal'];
+const moodTags = [
+  ['😄', 'Alegre'], ['😢', 'Triste'], ['😴', 'Cansada'], ['💪', 'Fuerte'],
+  ['😠', 'Enfadada'], ['🤬', 'Rabiosa'], ['🍽️', 'Hambrienta'], ['🤕', 'Adolorida'],
+  ['🎈', 'Hinchada'], ['🌀', 'Desconcentrada'], ['😞', 'Desmotivada'],
+];
 
 String dayKey(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 String _nice(String k) => '${k.substring(8)}/${k.substring(5, 7)}/${k.substring(0, 4)}';
 
-/// Registro diario del estado de ánimo.
+// etiquetas de un día (admite el formato antiguo de una sola carita)
+List<int> tagsOf(Map e) {
+  final t = e['t'];
+  if (t is List) return [for (final v in t) v as int];
+  final m = e['m'];
+  if (m is int) return m <= 1 ? [0] : (m >= 3 ? [1] : <int>[]);
+  return <int>[];
+}
+
+/// Registro diario de estados de ánimo (se pueden elegir varios).
 class MoodScreen extends StatefulWidget {
   const MoodScreen({super.key});
   @override
@@ -19,15 +31,15 @@ class MoodScreen extends StatefulWidget {
 class _MoodState extends State<MoodScreen> {
   final note = TextEditingController();
   final String today = dayKey(DateTime.now());
-  int? sel;
+  final Set<int> sel = {};
 
   @override
   void initState() {
     super.initState();
     final e = store.moods()[today] as Map?;
     if (e != null) {
-      sel = e['m'] as int;
-      note.text = e['n'] as String;
+      sel.addAll(tagsOf(e));
+      note.text = (e['n'] as String?) ?? '';
     }
   }
 
@@ -37,21 +49,19 @@ class _MoodState extends State<MoodScreen> {
     super.dispose();
   }
 
-  void _pick(int i) {
-    setState(() => sel = i);
-    store.setMood(today, i, note.text.trim());
+  void _persist() {
+    if (sel.isEmpty && note.text.trim().isEmpty) {
+      store.delMood(today);
+    } else {
+      store.setMood(today, sel.toList()..sort(), note.text.trim());
+    }
   }
 
-  void _saveNote() {
-    final m = sel;
-    if (m == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Elige primero cómo te sientes')));
-      return;
-    }
-    store.setMood(today, m, note.text.trim());
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado ✅')));
+  void _toggle(int i) {
+    setState(() {
+      if (!sel.remove(i)) sel.add(i);
+    });
+    _persist();
   }
 
   @override
@@ -60,48 +70,51 @@ class _MoodState extends State<MoodScreen> {
     final keys = all.keys.toList()..sort((a, b) => b.compareTo(a));
     final now = DateTime.now();
     final days = [for (int i = 13; i >= 0; i--) now.subtract(Duration(days: i))];
-    int sum = 0, n = 0;
+    final cnt = List<int>.filled(moodTags.length, 0);
     for (int i = 0; i < 30; i++) {
       final e = all[dayKey(now.subtract(Duration(days: i)))] as Map?;
       if (e != null) {
-        sum += e['m'] as int;
-        n++;
+        for (final t in tagsOf(e)) {
+          cnt[t]++;
+        }
       }
     }
-    final avg = n == 0 ? -1 : (sum / n).round();
+    final top = List<int>.generate(moodTags.length, (i) => i)
+        .where((i) => cnt[i] > 0)
+        .toList()
+      ..sort((a, b) => cnt[b].compareTo(cnt[a]));
     return Scaffold(
       appBar: AppBar(title: const Text('Estados de ánimo 😊')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         const Text('¿Cómo te sientes hoy?',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 12),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          for (int i = 0; i < 5; i++)
-            GestureDetector(
-              onTap: () => _pick(i),
-              child: Column(children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                      color: sel == i ? const Color(0x33FFB347) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: sel == i ? kInk : Colors.transparent, width: 2)),
-                  child: Text(moodFaces[i], style: TextStyle(fontSize: sel == i ? 40 : 34)),
-                ),
-                Text(moodLabels[i], style: const TextStyle(fontSize: 12)),
-              ]),
-            ),
+        const Text('Puedes elegir varios', style: TextStyle(color: Colors.black54)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (int i = 0; i < moodTags.length; i++)
+            FilterChip(
+                label: Text('${moodTags[i][0]} ${moodTags[i][1]}'),
+                selected: sel.contains(i),
+                onSelected: (_) => _toggle(i)),
         ]),
         const SizedBox(height: 12),
         TextField(
             controller: note,
             maxLength: 120,
             decoration: InputDecoration(
-                hintText: 'Nota opcional (qué ha pasado, cómo duermes…)',
-                suffixIcon: IconButton(icon: const Icon(Icons.check), onPressed: _saveNote))),
+                hintText: 'Nota opcional',
+                suffixIcon: IconButton(
+                    icon: const Icon(Icons.check),
+                    onPressed: () {
+                      _persist();
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(const SnackBar(content: Text('Guardado ✅')));
+                    }))),
         const SizedBox(height: 8),
-        Text(avg < 0 ? 'Aún no hay datos de los últimos 30 días' : 'Media de 30 días: ${moodFaces[avg]} ${moodLabels[avg]}',
+        Text(
+            top.isEmpty
+                ? 'Aún no hay datos de los últimos 30 días'
+                : 'Más frecuentes (30 días): ${top.take(3).map((i) => '${moodTags[i][0]} ${moodTags[i][1]} (${cnt[i]})').join(' · ')}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         const Text('Últimos 14 días'),
@@ -109,10 +122,13 @@ class _MoodState extends State<MoodScreen> {
         Wrap(spacing: 6, runSpacing: 6, children: [
           for (final d in days)
             SizedBox(
-              width: 38,
+              width: 44,
               child: Column(children: [
-                Text(all[dayKey(d)] == null ? '·' : moodFaces[(all[dayKey(d)] as Map)['m'] as int],
-                    style: const TextStyle(fontSize: 24)),
+                Text(
+                    all[dayKey(d)] == null
+                        ? '·'
+                        : tagsOf(all[dayKey(d)] as Map).take(2).map((t) => moodTags[t][0]).join(),
+                    style: const TextStyle(fontSize: 18)),
                 Text('${d.day}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
               ]),
             ),
@@ -121,9 +137,12 @@ class _MoodState extends State<MoodScreen> {
         for (final k in keys.take(30))
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Text(moodFaces[(all[k] as Map)['m'] as int], style: const TextStyle(fontSize: 28)),
-            title: Text('${_nice(k)} · ${moodLabels[(all[k] as Map)['m'] as int]}'),
-            subtitle: ((all[k] as Map)['n'] as String).isEmpty ? null : Text((all[k] as Map)['n'] as String),
+            title: Text(
+                '${_nice(k)}  ${tagsOf(all[k] as Map).map((t) => moodTags[t][0]).join(' ')}'),
+            subtitle: Text([
+              tagsOf(all[k] as Map).map((t) => moodTags[t][1]).join(', '),
+              ((all[k] as Map)['n'] as String?) ?? '',
+            ].where((s) => s.isNotEmpty).join(' · ')),
             trailing: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: () {

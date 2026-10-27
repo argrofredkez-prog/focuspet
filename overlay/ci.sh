@@ -10,6 +10,13 @@ mkdir -p $K android/app/src/main/res/xml android/app/src/main/res/values
 cp ../overlay/kotlin/*.kt $K/
 cp ../overlay/res/xml/*.xml android/app/src/main/res/xml/
 cp ../overlay/res/values/*.xml android/app/src/main/res/values/
+mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
+cp ../overlay/res/drawable/*.xml android/app/src/main/res/drawable/
+cp ../overlay/res/mipmap-anydpi-v26/*.xml android/app/src/main/res/mipmap-anydpi-v26/
+for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+  mkdir -p android/app/src/main/res/mipmap-$d
+  cp ../overlay/res/mipmap-$d/ic_launcher.png android/app/src/main/res/mipmap-$d/
+done
 python3 - <<'PY'
 p = 'android/app/src/main/AndroidManifest.xml'
 m = open(p).read()

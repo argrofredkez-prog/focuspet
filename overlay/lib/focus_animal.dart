@@ -18,7 +18,7 @@ class _Pal {
 
 const _pals = {
   Animal.cerdo: _Pal(Color(0xFFFFB3C7), Color(0xFFFFDCE6), Color(0xFFFFE6EE), Color(0xFFC2557A), Color(0xFFFF8FAB)),
-  Animal.unicornio: _Pal(Color(0xFFF1EAFF), Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFF9C84D4), Color(0xFFFFB6D5)),
+  Animal.unicornio: _Pal(Color(0xFFF7F4F6), Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFB5A9AE), Color(0xFFFFB6D5)),
   Animal.tigre: _Pal(Color(0xFFFFA94D), Color(0xFFFFD08A), Color(0xFFFFF3D6), Color(0xFF9A5418), Color(0xFFFF8FAB)),
   Animal.cocodrilo: _Pal(Color(0xFF6CCB7A), Color(0xFFA6E8A8), Color(0xFFF5E6B8), Color(0xFF2F7D4F), Color(0xFF3FA062)),
 };
@@ -94,7 +94,8 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
           final wave = sin(_c.value * 2 * pi);
           final blink = _c.value > 0.94;
           return Stack(alignment: Alignment.center, children: [
-            CustomPaint(size: Size.square(sz * 1.4), painter: _AuraPainter(_c.value, color)),
+            if (widget.animal != Animal.unicornio)
+              CustomPaint(size: Size.square(sz * 1.4), painter: _AuraPainter(_c.value, color)),
             Transform.translate(
               offset: Offset(0, widget.mode == 1 ? -8 * wave.abs() : 0),
               child: Transform.scale(
@@ -223,8 +224,56 @@ class _AnimalPainter extends CustomPainter {
   Offset get _hl => mode == 1
       ? const Offset(23, 41)
       : (mode == 0
-          ? const Offset(38, 74)
-          : (mode == 2 ? const Offset(43, 76) : const Offset(28, 76)));
+          ? const Offset(37, 62)
+          : (mode == 2 ? const Offset(40, 73) : const Offset(22, 56)));
+
+  // mano a una distancia corta del hombro (brazo de tamaño real)
+  Offset get _hand {
+    const sh = Offset(34, 58);
+    final v = _hl - sh;
+    final len = v.distance;
+    return len <= 14 ? _hl : sh + v * (14 / len);
+  }
+
+  // zarpa con garras (tigre, cocodrilo) o pezuña (cerdo, unicornio)
+  void _paw(Canvas c, Offset hand) {
+    final ang = atan2(hand.dy - 58, hand.dx - 34);
+    c.save();
+    c.translate(hand.dx, hand.dy);
+    c.rotate(ang);
+    final blob = Rect.fromCenter(center: const Offset(1, 0), width: 8, height: 7);
+    c.drawOval(blob, _f(p.base));
+    c.drawOval(blob, _l(p.line, 1));
+    switch (a) {
+      case Animal.cerdo:
+        for (final dy in [-1.9, 1.9]) {
+          final hoofP = Rect.fromCenter(center: Offset(5.5, dy), width: 4.6, height: 3.6);
+          c.drawOval(hoofP, _f(p.accent));
+          c.drawOval(hoofP, _l(p.line, 0.8));
+        }
+        break;
+      case Animal.unicornio:
+        final hoofU = RRect.fromRectAndRadius(
+            Rect.fromCenter(center: const Offset(6, 0), width: 5.5, height: 6.5),
+            const Radius.circular(2));
+        c.drawRRect(hoofU, _f(p.accent));
+        c.drawRRect(hoofU, _l(const Color(0xFFD99AB5), 0.8));
+        break;
+      case Animal.tigre:
+      case Animal.cocodrilo:
+        for (final dy in [-2.4, 0.0, 2.4]) {
+          final claw = Path()
+            ..moveTo(4.5, dy - 1.1)
+            ..lineTo(8.6, dy)
+            ..lineTo(4.5, dy + 1.1)
+            ..close();
+          c.drawPath(claw, _f(a == Animal.tigre ? const Color(0xFFFFF3E0) : Colors.white));
+          c.drawPath(claw, _l(p.line, 0.6));
+        }
+        break;
+    }
+    c.restore();
+  }
 
   Path _spark(Offset o, double r) => Path()
     ..moveTo(o.dx, o.dy - r)
@@ -297,7 +346,13 @@ class _AnimalPainter extends CustomPainter {
     _back(c);
     _feet(c);
     _body(c);
-    if (mode == 0) _book(c);
+    if (mode == 2) _pillow(c);
+    if (mode == 0) {
+      c.save();
+      c.translate(0, -10);
+      _book(c);
+      c.restore();
+    }
     _arms(c);
     _ears(c);
     _head(c);
@@ -452,6 +507,24 @@ class _AnimalPainter extends CustomPainter {
     }
   }
 
+  // ---------------- almohada (dormir): queda entre los brazos ----------------
+  void _pillow(Canvas c) {
+    c.save();
+    c.translate(50, 74);
+    c.rotate(-0.06);
+    final r = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: 36, height: 21), const Radius.circular(9));
+    c.drawRRect(r, _g(r.outerRect, const Color(0xFFEAF3FF), const Color(0xFF9CC4F5)));
+    c.drawRRect(r, _l(const Color(0xFF5B8DC9), 1.1));
+    c.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromCenter(center: Offset.zero, width: 30, height: 15), const Radius.circular(7)),
+        _l(const Color(0x88FFFFFF), 0.8));
+    c.drawPath(_spark(const Offset(-8, -1), 2.4), _f(const Color(0xFFFFE066)));
+    c.drawPath(_spark(const Offset(7, 2), 1.8), _f(const Color(0xFFFFE066)));
+    c.restore();
+  }
+
   // ---------------- libro (estudiar) ----------------
   void _book(Canvas c) {
     final r = RRect.fromRectAndRadius(
@@ -471,16 +544,15 @@ class _AnimalPainter extends CustomPainter {
 
   // ---------------- brazos ----------------
   void _arms(Canvas c) {
-    final hl = _hl;
+    final hl = _hand;
     _both(c, () {
-      c.drawLine(const Offset(34, 58), hl, _l(p.line, 10.5));
-      c.drawLine(const Offset(34, 58), hl, _l(p.base, 8.5));
+      c.drawLine(const Offset(34, 58), hl, _l(p.line, 9));
+      c.drawLine(const Offset(34, 58), hl, _l(p.base, 7));
       if (a == Animal.tigre) {
         final mid = Offset.lerp(const Offset(34, 58), hl, 0.5)!;
         c.drawLine(mid.translate(-3.5, 0), mid.translate(3.5, 0), _l(const Color(0xFF3A2A1E), 1.8));
       }
-      c.drawCircle(hl, 5.2, _f(p.base));
-      c.drawCircle(hl, 5.2, _l(p.line, 1.1));
+      _paw(c, hl);
     });
     if (mode == 1) {
       _both(c, () {
@@ -877,7 +949,7 @@ class _AnimalPainter extends CustomPainter {
           });
           break;
         case 'a_balloon':
-          final hr = Offset(100 - _hl.dx, _hl.dy);
+          final hr = Offset(100 - _hand.dx, _hand.dy);
           c.drawLine(hr, const Offset(82, 30), _l(const Color(0xFF7A7A8C), 0.8));
           final bl = Rect.fromCenter(center: const Offset(82, 21), width: 15, height: 19);
           c.drawOval(bl, _g(bl, const Color(0xFFFF8A8A), const Color(0xFFE8445A)));

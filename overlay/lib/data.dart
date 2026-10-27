@@ -230,7 +230,11 @@ class Store {
     p.setString('topics', jsonEncode(l));
   }
 
-  String get intervalsText => p.getString('intervals') ?? '14,30,60,120,180';
+  // 14 días tras el 1.º estudio, 30 tras el 2.º, y 30 en adelante (mensual)
+  String get intervalsText {
+    final s = p.getString('intervals');
+    return (s == null || s == '14,30,60,120,180') ? '14,30' : s;
+  }
 
   List<int> get intervals {
     final l = <int>[];
@@ -266,9 +270,9 @@ class Store {
     return s == null ? <String, dynamic>{} : Map<String, dynamic>.from(jsonDecode(s) as Map);
   }
 
-  void setMood(String key, int m, String note) {
+  void setMood(String key, List<int> tags, String note) {
     final all = moods();
-    all[key] = {'m': m, 'n': note};
+    all[key] = {'t': tags, 'n': note};
     p.setString('moods', jsonEncode(all));
   }
 
