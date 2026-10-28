@@ -65,6 +65,14 @@ class MainActivity : FlutterActivity() {
                         Bedtime.cancel(applicationContext, (call.arguments as Number).toInt())
                         result.success(null)
                     }
+                    "setBrightness" -> {
+                        val v = (call.arguments as Number).toFloat()
+                        val lp = window.attributes
+                        lp.screenBrightness =
+                            if (v >= 1f) android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE else v
+                        window.attributes = lp
+                        result.success(null)
+                    }
                     "scheduleEnd" -> {
                         val m = call.arguments as Map<*, *>
                         EndAlarm.schedule(

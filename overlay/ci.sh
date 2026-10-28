@@ -24,6 +24,7 @@ s = open('../overlay/service.xml').read()
 perms = ('<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
          '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
          '    <uses-permission android:name="android.permission.VIBRATE" />\n'
+         '    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />\n'
          '    ')
 q = ('<intent>\n            <action android:name="android.intent.action.MAIN" />\n'
      '            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n        ')

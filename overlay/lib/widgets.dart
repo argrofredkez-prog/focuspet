@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'data.dart';
 import 'focus_animal.dart';
@@ -137,3 +138,54 @@ class _BubblePainter extends CustomPainter {
 Widget itemIcon(Item it, {double size = 30}) => it.img != null
     ? Image.memory(it.img!, width: size, height: size)
     : Text(it.emoji, style: TextStyle(fontSize: size));
+
+/// Sol hasta las 16:00, atardecer hasta las 20:00 y luna hasta las 8:00. Brilla suavemente.
+class SkyIcon extends StatefulWidget {
+  const SkyIcon({super.key});
+  @override
+  State<SkyIcon> createState() => _SkyState();
+}
+
+class _SkyState extends State<SkyIcon> with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = DateTime.now().hour;
+    final p = (h >= 8 && h < 16) ? 0 : ((h >= 16 && h < 20) ? 1 : 2);
+    const icons = ['☀️', '🌇', '🌙'];
+    const glows = [Color(0xFFFFD43B), Color(0xFFFF8A3D), Color(0xFFB3C7FF)];
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) => Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [
+          BoxShadow(
+              color: glows[p].withAlpha((70 + 100 * _c.value).round()),
+              blurRadius: 8 + 12 * _c.value,
+              spreadRadius: 1 + 3 * _c.value)
+        ]),
+        child: Text(icons[p], style: const TextStyle(fontSize: 22)),
+      ),
+    );
+  }
+}

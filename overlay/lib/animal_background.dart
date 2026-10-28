@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'data.dart';
 import 'focus_animal.dart';
 
 const _skies = {
@@ -84,6 +85,9 @@ class _BgPainter extends CustomPainter {
         break;
     }
     _tint(canvas, s);
+    if (dimLevel > 0) {
+      canvas.drawRect(rect, Paint()..color = Color.fromARGB((dimLevel * 255).round(), 0, 0, 0));
+    }
   }
 
   // ---------- piezas comunes ----------

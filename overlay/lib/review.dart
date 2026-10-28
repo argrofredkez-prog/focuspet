@@ -115,7 +115,7 @@ class _ReviewState extends State<ReviewScreen> {
         Padding(
           padding: const EdgeInsets.all(16),
           child: Text('Repasos a los ${store.intervals.join(' → ')} días (el último se repite)',
-              style: const TextStyle(color: Colors.black54)),
+              style: const TextStyle(color: Colors.grey)),
         ),
         if (l.isEmpty)
           const Padding(

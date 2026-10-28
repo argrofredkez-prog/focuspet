@@ -476,7 +476,7 @@ class _DrawState extends State<DrawScreen> {
                   bucket
                       ? 'Toca dentro de una figura cerrada para rellenarla'
                       : 'Dibuja el contorno (ciérralo para poder rellenarlo)',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
             ),
             const SizedBox(height: 6),
             Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [

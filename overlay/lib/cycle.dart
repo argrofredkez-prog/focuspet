@@ -106,7 +106,7 @@ class _CycleState extends State<CycleScreen> {
           shape: BoxShape.circle,
           border: d == today ? Border.all(color: kInk, width: 2) : null),
       child: Text('${d.day}',
-          style: TextStyle(color: white ? Colors.white : Colors.black87, fontWeight: FontWeight.w600)),
+          style: TextStyle(color: white ? Colors.white : (bg == null ? null : Colors.black87), fontWeight: FontWeight.w600)),
     );
   }
 
@@ -179,7 +179,7 @@ class _CycleState extends State<CycleScreen> {
         const SizedBox(height: 8),
         const Text(
             'Las fases y fechas son estimaciones. No sirven como método anticonceptivo ni como diagnóstico. Los datos se guardan solo en tu móvil.',
-            style: TextStyle(fontSize: 12, color: Colors.black54)),
+            style: TextStyle(fontSize: 12, color: Colors.grey)),
         const Divider(height: 28),
         for (int i = cs.length - 1; i >= 0; i--)
           ListTile(

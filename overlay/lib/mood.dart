@@ -88,7 +88,7 @@ class _MoodState extends State<MoodScreen> {
       body: ListView(padding: const EdgeInsets.all(16), children: [
         const Text('¿Cómo te sientes hoy?',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-        const Text('Puedes elegir varios', style: TextStyle(color: Colors.black54)),
+        const Text('Puedes elegir varios', style: TextStyle(color: Colors.grey)),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (int i = 0; i < moodTags.length; i++)
@@ -129,7 +129,7 @@ class _MoodState extends State<MoodScreen> {
                         ? '·'
                         : tagsOf(all[dayKey(d)] as Map).take(2).map((t) => moodTags[t][0]).join(),
                     style: const TextStyle(fontSize: 18)),
-                Text('${d.day}', style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                Text('${d.day}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ]),
             ),
         ]),

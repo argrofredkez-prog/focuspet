@@ -87,6 +87,8 @@ Item itemById(String id) =>
     allItems().firstWhere((i) => i.id == id, orElse: () => catalog.first);
 
 late Store store;
+double dimLevel = 0.25; // atenuación de los fondos (0 = nada)
+final ValueNotifier<bool> darkMode = ValueNotifier<bool>(true);
 
 class Store {
   final SharedPreferences p;
@@ -98,7 +100,14 @@ class Store {
   }
 
   bool get strict => p.getBool('strict') ?? true;
-  List<String> get allowed => p.getStringList('allowed') ?? <String>[];
+  // apps permitidas en modo no estricto, por estado (0 estudiar, 1 entrenar)
+  List<String> allowedFor(int mode) =>
+      p.getStringList('allowed_$mode') ?? p.getStringList('allowed') ?? <String>[];
+  void setAllowed(int mode, List<String> l) {
+    p.setStringList('allowed_$mode', l);
+  }
+
+  double get bright => p.getDouble('bright') ?? 0.6;
 
   // Avisos diarios (minutos del día; -1 = desactivado). 1 dormir, 2 entrenar, 3 estudiar, 4 repasar;
   // 5, 6 y 7 son el 2.º aviso de dormir, entrenar y estudiar
