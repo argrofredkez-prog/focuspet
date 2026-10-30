@@ -32,6 +32,8 @@ class FocusAnimal extends StatefulWidget {
   final List<String> acc; // ids de complementos puestos
   final double eat; // animación de comer: -1 = no, 0..1 = progreso
   final Item? food;
+  final String? emotion; // focus | sad | happy
+  final bool aura;
   const FocusAnimal({
     super.key,
     required this.animal,
@@ -41,6 +43,8 @@ class FocusAnimal extends StatefulWidget {
     this.acc = const [],
     this.eat = -1,
     this.food,
+    this.emotion,
+    this.aura = true,
   });
 
   @override
@@ -93,8 +97,9 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
         builder: (_, __) {
           final wave = sin(_c.value * 2 * pi);
           final blink = _c.value > 0.94;
+          final clap = widget.emotion == 'happy' ? (DateTime.now().millisecondsSinceEpoch % 700) / 700.0 : -1.0;
           return Stack(alignment: Alignment.center, children: [
-            if (widget.animal != Animal.unicornio)
+            if (widget.aura && widget.animal != Animal.unicornio)
               CustomPaint(size: Size.square(sz * 1.4), painter: _AuraPainter(_c.value, color)),
             Transform.translate(
               offset: Offset(0, widget.mode == 1 ? -8 * wave.abs() : 0),
@@ -108,7 +113,7 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
                     CustomPaint(
                         size: Size.square(sz),
                         painter: _AnimalPainter(
-                            widget.animal, widget.mode, blink, widget.acc, widget.eat)),
+                            widget.animal, widget.mode, blink, widget.acc, widget.eat, widget.emotion, clap)),
                     for (final id in widget.acc)
                       if (id.startsWith('c_')) _custom(id, sz),
                     ..._eatWidgets(sz),
@@ -204,9 +209,16 @@ class _AnimalPainter extends CustomPainter {
   final bool blink;
   final List<String> acc;
   final double eat;
-  _AnimalPainter(this.a, this.mode, this.blink, this.acc, this.eat);
+  final String? emo;
+  final double clap; // aplauso: -1 = no, 0..1 = ciclo
+  _AnimalPainter(this.a, this.mode, this.blink, this.acc, this.eat, this.emo, this.clap);
 
   _Pal get p => _pals[a]!;
+  Color get _iris => a == Animal.cerdo
+      ? const Color(0xFF7A4A33)
+      : (a == Animal.unicornio
+          ? const Color(0xFF6C8CD5)
+          : (a == Animal.tigre ? const Color(0xFFD18B16) : const Color(0xFF4FA83F)));
   static const ink = Color(0xFF3B2A3A);
 
   Paint _f(Color c) => Paint()..color = c;
@@ -221,7 +233,9 @@ class _AnimalPainter extends CustomPainter {
             center: const Alignment(-0.35, -0.5), radius: 1.0, colors: [hi, lo])
         .createShader(r);
 
-  Offset get _hl => mode == 1
+  Offset get _hl => clap >= 0
+      ? Offset(50 - (3 + 11 * (0.5 + 0.5 * cos(clap * 2 * pi))), 62)
+      : mode == 1
       ? const Offset(23, 41)
       : (mode == 0
           ? const Offset(37, 62)
@@ -282,6 +296,67 @@ class _AnimalPainter extends CustomPainter {
     ..quadraticBezierTo(o.dx, o.dy, o.dx - r, o.dy)
     ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy - r)
     ..close();
+
+  // destellos cuando las manos chocan al aplaudir
+  void _claps(Canvas c) {
+    if (clap < 0 || 50 - _hand.dx > 6) return;
+    final k = _l(const Color(0xFFFFD43B), 1.4);
+    c.drawLine(const Offset(50, 54), const Offset(50, 48), k);
+    c.drawLine(const Offset(45, 55), const Offset(40, 51), k);
+    c.drawLine(const Offset(55, 55), const Offset(60, 51), k);
+  }
+
+  // relieve y detalles propios de cada animal: brillo, pelaje, pecas, flequillo, escamas
+  void _extras(Canvas c) {
+    c.drawOval(Rect.fromCenter(center: const Offset(42, 18), width: 14, height: 6), _f(const Color(0x40FFFFFF)));
+    if (a != Animal.cocodrilo) {
+      final fur = _l(Color.lerp(p.line, p.base, 0.45)!, 0.7);
+      _both(c, () {
+        c.drawLine(const Offset(26.5, 38), const Offset(24.5, 40), fur);
+        c.drawLine(const Offset(27.5, 43), const Offset(25.2, 44.5), fur);
+        c.drawLine(const Offset(30, 47), const Offset(28.2, 49.5), fur);
+      });
+    }
+    switch (a) {
+      case Animal.cerdo:
+        for (final q in [const Offset(42, 37), const Offset(45, 36), const Offset(55, 37), const Offset(58, 36.5)]) {
+          c.drawCircle(q, 0.7, _f(p.line));
+        }
+        break;
+      case Animal.unicornio:
+        const tuft = [Color(0xFFFF8FA3), Color(0xFFFFC27A), Color(0xFFA8E6A1), Color(0xFF9AD1FF)];
+        for (int i = 0; i < tuft.length; i++) {
+          c.drawPath(
+              Path()
+                ..moveTo(52, 11)
+                ..quadraticBezierTo(44.0 - i, 7, 40.0 - i * 1.5, 17.0 + i),
+              _l(tuft[i], 2.4));
+        }
+        break;
+      case Animal.tigre:
+        c.drawLine(const Offset(50, 44), const Offset(50, 46.5), _l(p.line, 0.8));
+        _both(c, () {
+          c.drawPath(
+              Path()
+                ..moveTo(26, 41)
+                ..lineTo(22.5, 43)
+                ..lineTo(26.5, 44.5)
+                ..lineTo(23.5, 47)
+                ..lineTo(28, 47),
+              _l(p.base, 1.6));
+        });
+        break;
+      case Animal.cocodrilo:
+        _both(c, () {
+          c.drawArc(Rect.fromCenter(center: const Offset(39, 25), width: 14, height: 6), pi * 1.05,
+              pi * 0.9, false, _l(p.line, 1));
+        });
+        for (final q in [const Offset(46, 18), const Offset(50, 16.5), const Offset(54, 18), const Offset(48, 21.5), const Offset(52, 21.5)]) {
+          c.drawArc(Rect.fromCenter(center: q, width: 3.4, height: 2.4), pi, pi, false, _l(p.line, 0.6));
+        }
+        break;
+    }
+  }
 
   // bulto al tragar
   void _gulp(Canvas c) {
@@ -347,16 +422,18 @@ class _AnimalPainter extends CustomPainter {
     _feet(c);
     _body(c);
     if (mode == 2) _pillow(c);
-    if (mode == 0) {
+    if (mode == 0 && clap < 0) {
       c.save();
       c.translate(0, -10);
       _book(c);
       c.restore();
     }
     _arms(c);
+    _claps(c);
     _ears(c);
     _head(c);
     _face(c);
+    _extras(c);
     _gulp(c);
     _outfit(c);
     _accessories(c);
@@ -484,6 +561,8 @@ class _AnimalPainter extends CustomPainter {
     c.drawOval(r, _g(r, p.light, p.base));
     c.drawOval(r, _l(p.line, 1.2));
     c.drawOval(Rect.fromCenter(center: const Offset(50, 71), width: 25, height: 28), _f(p.belly));
+    c.drawOval(Rect.fromCenter(center: const Offset(50, 57), width: 32, height: 9), _f(const Color(0x22000000)));
+    c.drawOval(Rect.fromCenter(center: const Offset(44, 66), width: 8, height: 14), _f(const Color(0x22FFFFFF)));
     switch (a) {
       case Animal.tigre:
         _both(c, () {
@@ -554,7 +633,7 @@ class _AnimalPainter extends CustomPainter {
       }
       _paw(c, hl);
     });
-    if (mode == 1) {
+    if (mode == 1 && clap < 0) {
       _both(c, () {
         c.drawLine(hl.translate(-10, 0), hl.translate(10, 0), _l(const Color(0xFF8A8FA3), 2.4));
         for (final dx in [-10.0, 10.0]) {
@@ -654,7 +733,15 @@ class _AnimalPainter extends CustomPainter {
 
   // ---------------- cara ----------------
   void _face(Canvas c) {
-    _both(c, () => c.drawCircle(const Offset(33.5, 42), 4.6, _f(const Color(0x66FF6F9C))));
+    _both(c, () {
+      final cr = Rect.fromCircle(center: const Offset(33.5, 42), radius: 6);
+      c.drawCircle(
+          const Offset(33.5, 42),
+          6,
+          Paint()
+            ..shader = const RadialGradient(colors: [Color(0x99FF6F9C), Color(0x00FF6F9C)])
+                .createShader(cr));
+    });
     switch (a) {
       case Animal.cerdo:
         {
@@ -698,26 +785,66 @@ class _AnimalPainter extends CustomPainter {
         break;
     }
 
-    final closed = mode == 2 || blink;
+    final closed = (mode == 2 && emo == null) || blink;
     _both(c, () {
       const e = Offset(39, 31);
-      if (eat >= 0.6) {
+      if (eat >= 0.6 || emo == 'happy') {
         c.drawArc(Rect.fromCenter(center: e, width: 11, height: 8), pi, pi, false, _l(ink, 1.8));
       } else if (closed) {
         c.drawArc(Rect.fromCenter(center: e, width: 11, height: 7), 0.15, pi - 0.3, false, _l(ink, 1.6));
       } else {
-        c.drawOval(Rect.fromCenter(center: e, width: 11.5, height: 13), _f(Colors.white));
-        c.drawOval(Rect.fromCenter(center: e.translate(0.4, 1), width: 8.2, height: 10.2), _f(ink));
-        c.drawCircle(e.translate(-1.2, -1.6), 2.1, _f(Colors.white));
-        c.drawCircle(e.translate(1.8, 2.8), 1, _f(const Color(0xCCFFFFFF)));
+        c.drawOval(Rect.fromCenter(center: e, width: 11.5, height: 13), _f(const Color(0xFFFDFBFF)));
+        final iris = Rect.fromCenter(center: e.translate(0.3, 1), width: 9, height: 11);
+        c.drawOval(
+            iris,
+            Paint()
+              ..shader = RadialGradient(colors: [Color.lerp(_iris, Colors.white, 0.35)!, _iris])
+                  .createShader(iris));
+        c.drawOval(Rect.fromCenter(center: e.translate(0.3, 1.2), width: 5, height: 6.6), _f(ink));
+        c.drawCircle(e.translate(-1.6, -1.8), 2.2, _f(Colors.white));
+        c.drawCircle(e.translate(2, 3.2), 1.1, _f(const Color(0xCCFFFFFF)));
+        c.drawArc(Rect.fromCenter(center: e, width: 12, height: 13.4), pi * 1.05, pi * 0.9, false,
+            _l(const Color(0x55000000), 1.0));
+        if (a == Animal.cerdo || a == Animal.unicornio) {
+          c.drawLine(e.translate(-5, -5), e.translate(-7.4, -7), _l(ink, 0.9));
+          c.drawLine(e.translate(-4, -6), e.translate(-5.8, -8.4), _l(ink, 0.9));
+        }
       }
-      if (mode == 1) {
+      if ((mode == 1 || emo == 'focus') && emo != 'happy' && emo != 'sad') {
         c.drawLine(const Offset(33.5, 24.5), const Offset(43.5, 27), _l(ink, 1.8));
+      } else if (emo == 'sad') {
+        c.drawLine(const Offset(34, 26.5), const Offset(43.5, 22.5), _l(ink, 1.8));
       }
     });
 
     final my = a == Animal.cocodrilo ? 50.0 : 49.0;
-    if (eat >= 0 && eat < 0.42) {
+    if (emo == 'sad') {
+      final dy = (DateTime.now().millisecondsSinceEpoch % 1200) / 1200 * 8;
+      _both(c, () {
+        c.drawPath(
+            Path()
+              ..moveTo(35, 36 + dy)
+              ..quadraticBezierTo(32.5, 40 + dy, 35, 42 + dy)
+              ..quadraticBezierTo(37.5, 40 + dy, 35, 36 + dy),
+            _f(const Color(0xFF6EC6FF)));
+      });
+    }
+    if (emo == 'happy') {
+      c.drawArc(Rect.fromCenter(center: Offset(50, my - 1.5), width: 13, height: 8), 0, pi, true,
+          _f(const Color(0xFF7A2E45)));
+    } else if (emo == 'talk') {
+      c.drawOval(
+          Rect.fromCenter(
+              center: Offset(50, my),
+              width: 8,
+              height: 2 + 4 * sin(DateTime.now().millisecondsSinceEpoch / 110).abs()),
+          _f(const Color(0xFF7A2E45)));
+    } else if (emo == 'sad') {
+      c.drawArc(Rect.fromCenter(center: Offset(50, my + 2.5), width: 9, height: 5), pi + 0.2, pi - 0.4,
+          false, _l(ink, 1.4));
+    } else if (emo == 'focus') {
+      c.drawLine(Offset(46.5, my), Offset(53.5, my), _l(ink, 1.5));
+    } else if (eat >= 0 && eat < 0.42) {
       c.drawOval(Rect.fromCenter(center: Offset(50, my), width: 12, height: 10),
           _f(const Color(0xFF7A2E45)));
       c.drawOval(Rect.fromCenter(center: Offset(50, my + 2.4), width: 7, height: 3.4),
@@ -971,5 +1098,5 @@ class _AnimalPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AnimalPainter o) =>
-      o.a != a || o.mode != mode || o.blink != blink || o.eat != eat || o.acc.join(',') != acc.join(',');
+      o.a != a || o.mode != mode || o.blink != blink || o.eat != eat || o.emo != emo || o.clap != clap || emo == 'sad' || emo == 'talk' || o.acc.join(',') != acc.join(',');
 }

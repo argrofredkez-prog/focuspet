@@ -67,6 +67,8 @@ const catalog = <Item>[
   Item('s_night', 'Noche estrellada', '🌙', 100, 'scene'),
 ];
 
+const musicShort = ['Sin música', '1 · Preludio', '2 · Gymnopédie', '3 · Nocturno'];
+
 const sceneIdx = {'s_sunset': 1, 's_night': 2, 's_dawn': 3};
 const slotNames = {
   'head': 'cabeza',
@@ -85,6 +87,14 @@ int stageOf(int xp) => xp >= 150 ? 2 : (xp >= 50 ? 1 : 0);
 List<Item> allItems() => [...catalog, ...store.customs];
 Item itemById(String id) =>
     allItems().firstWhere((i) => i.id == id, orElse: () => catalog.first);
+
+// Escena efectiva: la elegida en la tienda o, si es automática, según la hora (sol / atardecer / noche)
+int effScene(Animal a) {
+  final s = store.scene(a);
+  if (s != 0) return s;
+  final h = DateTime.now().hour;
+  return (h >= 8 && h < 16) ? 0 : ((h >= 16 && h < 20) ? 1 : 2);
+}
 
 late Store store;
 double dimLevel = 0.25; // atenuación de los fondos (0 = nada)
@@ -108,6 +118,9 @@ class Store {
   }
 
   double get bright => p.getDouble('bright') ?? 0.6;
+  bool get blockNotifs => p.getBool('dnd') ?? true;
+  int get music => p.getInt('music') ?? 1; // 0 = sin música, 1..3 = pista
+  double get musicVol => p.getDouble('mvol') ?? 0.6;
 
   // Avisos diarios (minutos del día; -1 = desactivado). 1 dormir, 2 entrenar, 3 estudiar, 4 repasar;
   // 5, 6 y 7 son el 2.º aviso de dormir, entrenar y estudiar

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'animal_background.dart';
 import 'data.dart';
 import 'focus_animal.dart';
+import 'game.dart';
 import 'cycle.dart';
 import 'mood.dart';
 import 'review.dart';
@@ -111,12 +112,17 @@ class _HomeState extends State<HomeScreen> {
   late double minutes = mode == 2 ? 480.0 : 25.0;
   String? bubble;
   Timer? _bt;
+  Timer? _clock;
 
   @override
   void initState() {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     _ch.invokeMethod('setBrightness', store.bright);
+    _ch.invokeMethod('dndRestore');
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
     for (final id in [1, 2, 3, 4, 5, 6, 7, 8]) {
       final v = store.rem(id);
       if (v >= 0) _ch.invokeMethod('setReminder', {'id': id, 'h': v ~/ 60, 'm': v % 60});
@@ -126,6 +132,7 @@ class _HomeState extends State<HomeScreen> {
   @override
   void dispose() {
     _bt?.cancel();
+    _clock?.cancel();
     super.dispose();
   }
 
@@ -152,6 +159,13 @@ class _HomeState extends State<HomeScreen> {
               onTap: () {
                 Navigator.pop(c);
                 _stats();
+              }),
+          ListTile(
+              leading: const Text('🎮', style: TextStyle(fontSize: 26)),
+              title: const Text('Descanso: minijuego'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(GameScreen(animal: animal));
               }),
           ListTile(
               leading: const Text('😊', style: TextStyle(fontSize: 26)),
@@ -220,6 +234,24 @@ class _HomeState extends State<HomeScreen> {
               ));
       return;
     }
+    if (store.blockNotifs && !(await _ch.invokeMethod<bool>('hasDnd') ?? false)) {
+      if (!mounted) return;
+      final go = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+                title: const Text('Bloquear notificaciones 🔕'),
+                content: const Text(
+                    'Para silenciar todo menos las llamadas, permite a focuspet el acceso a "No molestar".'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Abrir ajustes')),
+                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Seguir sin bloquear')),
+                ],
+              ));
+      if (go == true) {
+        _ch.invokeMethod('openDndSettings');
+        return;
+      }
+    }
     final strict = mode == 2 ? true : store.strict;
     final pkgs = strict
         ? <String>[]
@@ -236,9 +268,8 @@ class _HomeState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scene = store.scene(animal);
+    final scene = effScene(animal);
     final ink = inkFor(animal, scene);
-    final st = stageOf(store.xp(animal));
     Widget icon(String e, VoidCallback f) => IconButton(
         onPressed: f,
         padding: EdgeInsets.zero,
@@ -273,7 +304,6 @@ class _HomeState extends State<HomeScreen> {
                     child: FocusAnimal(
                         animal: animal,
                         size: 200,
-                        scale: stageScale[st],
                         mode: mode,
                         acc: store.accIds(animal)),
                   ),
@@ -283,7 +313,6 @@ class _HomeState extends State<HomeScreen> {
               SizedBox(
                   height: 70,
                   child: bubble == null ? null : Center(child: ComicBubble(text: bubble!))),
-              PetStats(animal: animal, ink: ink),
               const SizedBox(height: 8),
               Wrap(spacing: 8, children: [
                 for (final a in Animal.values)
@@ -345,6 +374,13 @@ class _HomeState extends State<HomeScreen> {
               if (!store.strict && mode != 2)
                 Text('Mitad de monedas · elige las apps antes de empezar',
                     style: TextStyle(fontSize: 12, color: ink)),
+              const SizedBox(height: 8),
+              ActionChip(
+                  label: Text('🎵 Música: ${musicShort[store.music]}'),
+                  onPressed: () {
+                    store.p.setInt('music', (store.music + 1) % 4);
+                    setState(() {});
+                  }),
               const SizedBox(height: 8),
               FilledButton(
                   style: FilledButton.styleFrom(
@@ -441,6 +477,27 @@ class _SettingsState extends State<SettingsScreen> {
           },
         ),
         SwitchListTile(
+          title: const Text('Bloquear notificaciones 🔕'),
+          subtitle: const Text('En la sesión solo suenan las llamadas (y las alarmas)'),
+          value: store.blockNotifs,
+          onChanged: (v) {
+            store.p.setBool('dnd', v);
+            setState(() {});
+          },
+        ),
+        ListTile(
+          title: Text('Volumen de la música 🎵 ${(store.musicVol * 100).round()}%'),
+          subtitle: Slider(
+              value: store.musicVol,
+              min: 0.05,
+              max: 1.0,
+              onChanged: (v) {
+                store.p.setDouble('mvol', v);
+                _ch.invokeMethod('musicVolume', v);
+                setState(() {});
+              }),
+        ),
+        SwitchListTile(
           title: const Text('Modo estricto 🔒'),
           subtitle: const Text(
               'Desactivado: puedes usar hasta 3 apps durante la sesión y ganas la mitad de monedas.'),
@@ -510,7 +567,7 @@ class _PhrasesState extends State<PhrasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scene = store.scene(widget.animal);
+    final scene = effScene(widget.animal);
     final ink = inkFor(widget.animal, scene);
     return Scaffold(
       appBar: AppBar(
@@ -590,18 +647,31 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   Timer? _t;
   Timer? _chatT;
   bool done = false;
+  String? speech; // frase que dice el animal desde la boca
+  Timer? _speechT;
+  String? emotion; // focus | sad | happy
+  Timer? _emoT;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.mode != 2) {
+      emotion = 'focus';
+      _emoT = Timer(const Duration(seconds: 3), () {
+        if (mounted && emotion == 'focus') setState(() => emotion = null);
+      });
+    }
+    _ch.invokeMethod('setDnd', store.blockNotifs);
+    _ch.invokeMethod('musicVolume', store.musicVol);
+    if (store.music > 0) _ch.invokeMethod('musicPlay', store.music);
     _ch.invokeMethod('setBlocking', true);
     _ch.invokeMethod('lockScreen'); // apaga la pantalla
     _scheduleEnd();
     _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     if (widget.mode != 2) {
-      _chatT = Timer.periodic(const Duration(seconds: 45), (_) => _say());
-      Future.delayed(const Duration(seconds: 1), () => _say());
+      _chatT = Timer.periodic(const Duration(seconds: 25), (_) => _say());
+      Future.delayed(const Duration(milliseconds: 3500), () => _say());
     }
   }
 
@@ -610,6 +680,9 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _t?.cancel();
     _chatT?.cancel();
+    _emoT?.cancel();
+    _speechT?.cancel();
+    _ch.invokeMethod('musicStop');
     _ch.invokeMethod('cancelEnd');
     _ch.invokeMethod('setBlocking', false);
     super.dispose();
@@ -630,9 +703,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     if (text == null && phrases.isEmpty) return;
     final msg = text ?? phrases[_rnd.nextInt(phrases.length)];
-    setState(() {
-      chat.add(MapEntry(_n++, msg));
-      if (chat.length > 2) chat.removeAt(0);
+    setState(() => speech = msg);
+    _speechT?.cancel();
+    _speechT = Timer(const Duration(seconds: 8), () {
+      if (mounted) setState(() => speech = null);
     });
   }
 
@@ -706,14 +780,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     final earned = (base * (widget.strict ? 1.0 : 0.5)).round();
     store.coins = store.coins + earned;
     store.addMins(widget.mode, widget.minutes);
-    var extra = '';
-    final xp = widget.mode == 1
-        ? widget.minutes ~/ 10
-        : (widget.mode == 2 ? widget.minutes ~/ 60 : 0);
-    if (xp > 0) {
-      store.addXp(widget.animal, xp);
-      extra = '  y +$xp ⭐';
-    }
+    const extra = '';
+    if (!mounted) return;
+    setState(() => emotion = 'happy');
+    await Future.delayed(const Duration(milliseconds: 3200));
     if (!mounted) return;
     await showDialog(
         context: context,
@@ -723,29 +793,99 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     if (mounted) Navigator.pop(context);
   }
 
+  void _nextTrack() {
+    final n = (store.music + 1) % 4;
+    store.p.setInt('music', n);
+    if (n == 0) {
+      _ch.invokeMethod('musicStop');
+    } else {
+      _ch.invokeMethod('musicPlay', n);
+    }
+    setState(() {});
+  }
+
+  Widget _banner(String t) => TweenAnimationBuilder<double>(
+        key: ValueKey(t),
+        tween: Tween<double>(begin: 0.5, end: 1.0),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.elasticOut,
+        builder: (_, v, child) => Transform.scale(scale: v, child: child),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+              color: const Color(0xFFFFD43B), borderRadius: BorderRadius.circular(20)),
+          child: Text(t,
+              style: const TextStyle(color: kInk, fontWeight: FontWeight.w900, fontSize: 16)),
+        ),
+      );
+
+  // Para abandonar hay que resolver una operación
   Future<void> _abandon() async {
     final msg = phrases.isEmpty
         ? '¿Seguro? Estás muy cerca 🥺'
         : phrases[_rnd.nextInt(phrases.length)];
+    var q = '';
+    var ans = 0;
+    var err = '';
+    void newQ() {
+      final t = _rnd.nextInt(3);
+      final a = 12 + _rnd.nextInt(38), b = 3 + _rnd.nextInt(7), n = 10 + _rnd.nextInt(90);
+      if (t == 0) {
+        q = '$a × $b + $n';
+        ans = a * b + n;
+      } else if (t == 1) {
+        q = '($a + $n) × $b';
+        ans = (a + n) * b;
+      } else {
+        q = '$a × $b − $n';
+        ans = a * b - n;
+      }
+    }
+
+    newQ();
+    final ctrl = TextEditingController();
     final yes = await showDialog<bool>(
         context: context,
-        builder: (c) => AlertDialog(
-              title: const Text('¿Abandonar? 🥺'),
-              content: Column(mainAxisSize: MainAxisSize.min, children: [
-                ComicBubble(text: msg),
-                const SizedBox(height: 8),
-                const Text('Perderás la recompensa de esta sesión.'),
-              ]),
-              actions: [
-                FilledButton(
-                    onPressed: () => Navigator.pop(c, false), child: const Text('Seguir 💪')),
-                TextButton(
-                    onPressed: () => Navigator.pop(c, true), child: const Text('Abandonar')),
-              ],
+        barrierDismissible: false,
+        builder: (c) => StatefulBuilder(
+              builder: (c, setS) => AlertDialog(
+                title: const Text('¿Abandonar? 🥺'),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  ComicBubble(text: msg),
+                  const SizedBox(height: 8),
+                  const Text('Resuelve para poder salir:'),
+                  Text('$q = ?', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
+                  TextField(
+                      controller: ctrl,
+                      keyboardType: const TextInputType.numberWithOptions(signed: true),
+                      decoration: InputDecoration(
+                          hintText: 'Resultado', errorText: err.isEmpty ? null : err)),
+                ]),
+                actions: [
+                  FilledButton(
+                      onPressed: () => Navigator.pop(c, false), child: const Text('Seguir 💪')),
+                  TextButton(
+                      onPressed: () {
+                        if (int.tryParse(ctrl.text.trim()) == ans) {
+                          Navigator.pop(c, true);
+                        } else {
+                          setS(() {
+                            err = 'Incorrecto, prueba con esta';
+                            newQ();
+                            ctrl.clear();
+                          });
+                        }
+                      },
+                      child: const Text('Abandonar')),
+                ],
+              ),
             ));
     if (yes == true && mounted) {
+      done = true;
       _t?.cancel();
-      Navigator.pop(context);
+      setState(() => emotion = 'sad');
+      await Future.delayed(const Duration(milliseconds: 2400));
+      if (mounted) Navigator.pop(context);
     }
   }
 
@@ -753,7 +893,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final paused = pauseStart != null;
     final left = maxPauses - pausesUsed;
-    final scene = widget.mode == 2 ? 2 : store.scene(widget.animal);
+    final scene = widget.mode == 2 ? 2 : effScene(widget.animal);
     final ink = inkFor(widget.animal, scene);
     return PopScope(
       canPop: false,
@@ -765,7 +905,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
             child: Center(
               child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  Stack(alignment: Alignment.center, children: [
+                  Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
                     SizedBox(
                         width: 250,
                         height: 250,
@@ -778,9 +918,19 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                     FocusAnimal(
                         animal: widget.animal,
                         size: 150,
-                        scale: stageScale[stageOf(store.xp(widget.animal))],
                         mode: widget.mode,
-                        acc: store.accIds(widget.animal)),
+                        acc: store.accIds(widget.animal),
+                        emotion: emotion ?? ((speech != null && widget.mode != 2) ? 'talk' : null)),
+                    if (emotion == 'focus' || emotion == 'happy')
+                      Positioned(
+                          top: 0,
+                          child: _banner(emotion == 'focus' ? 'FOCUS ON ⚡' : '¡Lo lograste! 👏')),
+                    if (speech != null && emotion == null && widget.mode != 2)
+                      Positioned(
+                          bottom: 127,
+                          left: 85,
+                          width: 170,
+                          child: MouthBubble(text: speech!, tipDx: 50, tipDy: 63, baseX: 98)),
                   ]),
                   const SizedBox(height: 12),
                   Text(_fmt(remaining),
@@ -791,14 +941,6 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                           : ['Estudiando 📚', 'Entrenando 💪', 'Durmiendo 😴 Buenas noches'][widget.mode],
                       style: TextStyle(fontSize: 16, color: ink)),
                   const SizedBox(height: 12),
-                  for (final m in chat)
-                    TweenAnimationBuilder<double>(
-                      key: ValueKey(m.key),
-                      tween: Tween<double>(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 500),
-                      builder: (_, v, child) => Opacity(opacity: v, child: child),
-                      child: ComicBubble(text: m.value),
-                    ),
                   const SizedBox(height: 12),
                   if (!widget.strict && store.allowedFor(widget.mode).isNotEmpty)
                     Wrap(spacing: 6, children: [
@@ -816,6 +958,8 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                     IconButton.filledTonal(
                         onPressed: _addPhrase, icon: const Icon(Icons.chat_bubble_outline)),
                   ]),
+                  ActionChip(
+                      label: Text('🎵 ${musicShort[store.music]}'), onPressed: _nextTrack),
                   TextButton(
                       onPressed: _abandon,
                       child: Text('Abandonar', style: TextStyle(color: ink))),

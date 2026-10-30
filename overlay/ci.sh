@@ -10,6 +10,8 @@ mkdir -p $K android/app/src/main/res/xml android/app/src/main/res/values
 cp ../overlay/kotlin/*.kt $K/
 cp ../overlay/res/xml/*.xml android/app/src/main/res/xml/
 cp ../overlay/res/values/*.xml android/app/src/main/res/values/
+mkdir -p android/app/src/main/res/raw
+cp ../overlay/res/raw/* android/app/src/main/res/raw/
 mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
 cp ../overlay/res/drawable/*.xml android/app/src/main/res/drawable/
 cp ../overlay/res/mipmap-anydpi-v26/*.xml android/app/src/main/res/mipmap-anydpi-v26/
@@ -25,6 +27,8 @@ perms = ('<uses-permission android:name="android.permission.POST_NOTIFICATIONS" 
          '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
          '    <uses-permission android:name="android.permission.VIBRATE" />\n'
          '    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />\n'
+         '    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />\n'
+         '    <uses-permission android:name="android.permission.WAKE_LOCK" />\n'
          '    ')
 q = ('<intent>\n            <action android:name="android.intent.action.MAIN" />\n'
      '            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n        ')

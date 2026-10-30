@@ -35,6 +35,8 @@ object EndAlarm {
 
 class EndReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        Dnd.disable(context)
+        MusicPlayer.stop()
         if (intent?.getBooleanExtra("v", true) == true) {
             val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             val pattern = longArrayOf(0, 500, 200, 500, 200, 900)

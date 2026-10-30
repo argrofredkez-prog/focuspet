@@ -65,6 +65,33 @@ class MainActivity : FlutterActivity() {
                         Bedtime.cancel(applicationContext, (call.arguments as Number).toInt())
                         result.success(null)
                     }
+                    "hasDnd" -> result.success(Dnd.granted(applicationContext))
+                    "openDndSettings" -> {
+                        if (Build.VERSION.SDK_INT >= 23) {
+                            startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                        }
+                        result.success(null)
+                    }
+                    "setDnd" -> {
+                        BlockerService.wantDnd = call.arguments as Boolean
+                        result.success(null)
+                    }
+                    "dndRestore" -> {
+                        if (!BlockerService.blocking) Dnd.disable(applicationContext)
+                        result.success(null)
+                    }
+                    "musicPlay" -> {
+                        MusicPlayer.play(applicationContext, (call.arguments as Number).toInt())
+                        result.success(null)
+                    }
+                    "musicStop" -> {
+                        MusicPlayer.stop()
+                        result.success(null)
+                    }
+                    "musicVolume" -> {
+                        MusicPlayer.setVolume((call.arguments as Number).toFloat())
+                        result.success(null)
+                    }
                     "setBrightness" -> {
                         val v = (call.arguments as Number).toFloat()
                         val lp = window.attributes

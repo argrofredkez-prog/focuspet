@@ -13,10 +13,17 @@ class BlockerService : AccessibilityService() {
         @Volatile var running = false
         @Volatile var blocking = false
         @Volatile var extra: Set<String> = emptySet() // apps permitidas (modo flexible)
+        @Volatile var wantDnd = false // silenciar notificaciones mientras se bloquea
+
+        private fun syncDnd() {
+            val ctx = instance?.applicationContext ?: return
+            if (wantDnd && blocking) Dnd.enable(ctx) else Dnd.disable(ctx)
+        }
         private var instance: BlockerService? = null
         private val handler = Handler(Looper.getMainLooper())
         private val resume = Runnable {
             blocking = true
+            syncDnd()
             instance?.bringAppToFront()
         }
         // Llamadas de emergencia y teléfono siempre permitidos
@@ -36,11 +43,13 @@ class BlockerService : AccessibilityService() {
         fun block(b: Boolean) {
             handler.removeCallbacks(resume)
             blocking = b
+            syncDnd()
         }
 
         // La pausa se reactiva sola aunque la app esté en segundo plano
         fun pauseFor(ms: Long) {
             blocking = false
+            syncDnd()
             handler.removeCallbacks(resume)
             handler.postDelayed(resume, ms)
         }

@@ -189,3 +189,54 @@ class _SkyState extends State<SkyIcon> with SingleTickerProviderStateMixin {
     );
   }
 }
+
+/// Bocadillo cuyo piquito llega hasta la boca del animal.
+class MouthBubble extends StatelessWidget {
+  final String text;
+  final double tipDx, tipDy, baseX; // punta del piquito y dónde nace, relativos al globo
+  const MouthBubble(
+      {super.key, required this.text, required this.tipDx, required this.tipDy, required this.baseX});
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(
+        painter: _MouthPainter(tipDx, tipDy, baseX),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(12, 10, 12, 10 + tipDy),
+          child: Text(text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: kInk, fontWeight: FontWeight.w700)),
+        ),
+      );
+}
+
+class _MouthPainter extends CustomPainter {
+  final double tipDx, tipDy, baseX;
+  _MouthPainter(this.tipDx, this.tipDy, this.baseX);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final bodyH = s.height - tipDy;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, s.width, bodyH), const Radius.circular(18)))
+      ..moveTo(baseX - 9, bodyH - 1)
+      ..lineTo(tipDx, s.height)
+      ..lineTo(baseX + 9, bodyH - 1)
+      ..close();
+    canvas.drawPath(path, Paint()..color = Colors.white);
+    canvas.drawPath(
+        path,
+        Paint()
+          ..color = kInk
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..strokeJoin = StrokeJoin.round);
+    canvas.drawLine(Offset(baseX - 8, bodyH), Offset(baseX + 8, bodyH),
+        Paint()
+          ..color = Colors.white
+          ..strokeWidth = 4);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}

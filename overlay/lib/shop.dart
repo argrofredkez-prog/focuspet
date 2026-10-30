@@ -39,13 +39,11 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
   void _feed(Item it) {
     if (store.inv(it.id) < 1 || _eating != null) return;
     store.setInv(it.id, store.inv(it.id) - 1);
-    store.feed(a, it.hunger);
-    store.addXp(a, it.xp);
     setState(() => _eating = it);
     _eatC.forward(from: 0).then((_) {
       if (mounted) setState(() => _eating = null);
     });
-    _msg('¡Ñam! +${it.xp} ⭐');
+    _msg('¡Ñam! 😋');
   }
 
   Widget _tile(Item it, String sub, List<Widget> actions) => ListTile(
@@ -60,7 +58,7 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
 
   Widget _foods() => ListView(children: [
         for (final it in allItems().where((i) => i.kind == 'food' && (i.animal == a || i.animal == null)))
-          _tile(it, 'Tienes ${store.inv(it.id)} · +${it.hunger} 🍽️ +${it.xp} ⭐', [
+          _tile(it, 'Tienes ${store.inv(it.id)}', [
             _buyBtn(it),
             const SizedBox(width: 6),
             FilledButton(
@@ -99,8 +97,8 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
     return ListView(children: [
       ListTile(
         leading: const Text('☀️', style: TextStyle(fontSize: 30)),
-        title: const Text('Día'),
-        subtitle: const Text('Fondo normal'),
+        title: const Text('Automático'),
+        subtitle: const Text('Cambia con la hora: sol, atardecer y noche'),
         trailing: cur == 0
             ? const Text('En uso')
             : FilledButton(
@@ -178,14 +176,12 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
                       builder: (_, __) => FocusAnimal(
                           animal: a,
                           size: 130,
-                          scale: stageScale[stageOf(store.xp(a))],
                           acc: store.accIds(a),
                           eat: _eating == null ? -1 : _eatC.value,
                           food: _eating),
                     ),
                   ),
                 ),
-                Expanded(child: Center(child: PetStats(animal: a, ink: kInk))),
               ]),
             ),
             Expanded(child: TabBarView(children: [_foods(), _accs(), _scenes(), _create()])),

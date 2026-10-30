@@ -70,6 +70,7 @@ class _BgPainter extends CustomPainter {
                   end: Alignment.bottomCenter,
                   colors: _skies[animal]!)
               .createShader(rect));
+    if (scene == 0 || scene == 1) _sun(canvas, s);
     switch (animal) {
       case Animal.cerdo:
         _farm(canvas, s);
@@ -415,6 +416,44 @@ class _BgPainter extends CustomPainter {
     }
   }
 
+  // Sol que recorre el cielo de 8:00 a 16:00 y se pone hasta las 20:00 (detrás de colinas y olas)
+  void _sun(Canvas c, Size s) {
+    final now = DateTime.now();
+    final hf = now.hour + now.minute / 60;
+    double x, y, r;
+    Color core, glow;
+    if (scene == 0) {
+      final u = ((hf - 8) / 8).clamp(0.0, 1.0).toDouble();
+      x = s.width * (0.1 + 0.8 * u);
+      y = s.height * (0.2 - 0.1 * sin(pi * u));
+      r = 20;
+      core = const Color(0xFFFFE066);
+      glow = const Color(0xFFFFD43B);
+    } else {
+      final u = ((hf - 16) / 4).clamp(0.0, 1.0).toDouble();
+      x = s.width * (0.25 + 0.5 * u);
+      y = s.height * (0.42 + 0.16 * u);
+      r = 30;
+      core = const Color(0xFFFF9A3D);
+      glow = const Color(0xFFFF6B3D);
+    }
+    final o = Offset(x, y);
+    c.drawCircle(o, r * 2.6, Paint()..color = glow.withAlpha(40));
+    c.drawCircle(o, r * 1.8, Paint()..color = glow.withAlpha(70));
+    if (scene == 0) {
+      final ray = Paint()
+        ..color = core
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round;
+      for (int i = 0; i < 12; i++) {
+        final a = i * pi / 6 + t * 2 * pi;
+        final dir = Offset(cos(a), sin(a));
+        c.drawLine(o + dir * (r + 5), o + dir * (r + 13), ray);
+      }
+    }
+    c.drawCircle(o, r, Paint()..color = core);
+  }
+
   // ---------- Atardecer / noche ----------
   void _tint(Canvas c, Size s) {
     final r = Offset.zero & s;
@@ -441,9 +480,14 @@ class _BgPainter extends CustomPainter {
         c.drawCircle(Offset(s.width * _r(i, 2), s.height * 0.8 * _r(i, 3)), 1 + 1.6 * _r(i, 4),
             Paint()..color = Colors.white.withAlpha((90 + 165 * tw).round()));
       }
-      final m = Offset(s.width * 0.82, s.height * 0.1);
-      c.drawCircle(m, 26, Paint()..color = const Color(0xFFFFF3B0));
-      c.drawCircle(m.translate(9, -4), 22, Paint()..color = const Color(0xFF1A1F5C));
+      final now = DateTime.now();
+      final hf = now.hour + now.minute / 60;
+      final u = ((hf >= 20 ? hf - 20 : hf + 4) / 12).clamp(0.0, 1.0).toDouble();
+      final m = Offset(s.width * (0.12 + 0.76 * u), s.height * (0.2 - 0.1 * sin(pi * u)));
+      c.drawCircle(m, 44, Paint()..color = const Color(0x22FFF3B0));
+      c.drawCircle(m, 30, Paint()..color = const Color(0x33FFF3B0));
+      c.drawCircle(m, 22, Paint()..color = const Color(0xFFFFF3B0));
+      c.drawCircle(m.translate(8, -3), 19, Paint()..color = const Color(0xFF1A1F5C));
     }
   }
 
