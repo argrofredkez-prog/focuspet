@@ -125,4 +125,9 @@ class MainActivity : FlutterActivity() {
                 }
             }
     }
+
+    override fun onDestroy() {
+        if (isFinishing) MusicPlayer.stop()
+        super.onDestroy()
+    }
 }

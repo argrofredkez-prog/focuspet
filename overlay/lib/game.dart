@@ -12,7 +12,14 @@ class _Obs {
   final double w, h, base; // base = altura sobre el suelo
   final String e;
   final bool bird;
+  bool dead = false;
   _Obs(this.x, this.w, this.h, this.base, this.e, {this.bird = false});
+}
+
+class _Shot {
+  double x, h; // h = altura sobre el suelo
+  bool dead = false;
+  _Shot(this.x, this.h);
 }
 
 class _Puff {
@@ -39,6 +46,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
   final Random rnd = Random();
   final List<_Obs> obs = [];
   final List<_Puff> puffs = [];
+  final List<_Shot> shots = [];
+  double cd = 0; // enfriamiento del disparo
   bool playing = false;
   double total = 0, timeLeft = 0, meters = 0, speed = 230, y = 0, vy = 0, spawn = 1.5;
   double stumble = 0, duck = 0, bannerT = 0, dust = 0, scroll = 0, worldW = 400, worldH = 500;
@@ -60,6 +69,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     store.coins = store.coins - cost;
     obs.clear();
     puffs.clear();
+    shots.clear();
+    cd = 0;
     total = timeLeft = mins * 60.0;
     meters = 0;
     speed = 230;
@@ -80,20 +91,38 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     if (playing && y == 0 && stumble <= 0) vy = 560;
   }
 
+  void _shoot() {
+    if (!playing || cd > 0 || stumble > 0) return;
+    cd = 0.45;
+    shots.add(_Shot(_px + 18, y + 24));
+  }
+
   void _duck() {
     if (playing && y == 0 && stumble <= 0) duck = 0.55;
   }
 
   void _spawn() {
-    spawn = (max(430.0 - level * 28, 200.0) + rnd.nextDouble() * 170) / speed;
+    // separación variable: a veces muy juntos, a veces muy separados
+    final g = rnd.nextDouble();
+    double gap = max(430.0 - level * 20, 220.0) + rnd.nextDouble() * 170;
+    if (level >= 2 && g < 0.28) {
+      gap = speed * (0.85 + rnd.nextDouble() * 0.25);
+    } else if (g > 0.8) {
+      gap = speed * (1.5 + rnd.nextDouble() * 0.8);
+    }
+    spawn = gap / speed;
     final pool = <int>[0, 1];
     if (level >= 1) pool.add(2); // cactus alto
     if (level >= 2) pool.add(3); // grupo de 2
     if (level >= 3) pool.add(4); // ave baja: saltar
     if (level >= 4) pool.add(5); // ave media: agacharse
     if (level >= 6) pool.add(6); // grupo de 3
+    if (level >= 5) pool.add(7); // pájaro grande: hay que dispararle
+    if (level >= 7) pool.addAll([8, 6]); // cactus doble alto
     final x = worldW + 30;
-    switch (pool[rnd.nextInt(pool.length)]) {
+    var pick = pool[rnd.nextInt(pool.length)];
+    if (pick == 7 && obs.isNotEmpty && obs.last.x > worldW * 0.45) pick = 0;
+    switch (pick) {
       case 0:
         obs.add(_Obs(x, 26, 36, 0, '🌵'));
         break;
@@ -112,6 +141,13 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
       case 5:
         obs.add(_Obs(x, 34, 20, 34, '🦅', bird: true));
         break;
+      case 7:
+        obs.add(_Obs(x, 44, 82, 0, '🦜', bird: true));
+        spawn = max(spawn, 1.3);
+        break;
+      case 8:
+        obs.add(_Obs(x, 58, 54, 0, '🌵🌵'));
+        break;
       default:
         obs.add(_Obs(x, 82, 36, 0, '🌵🌵🌵'));
     }
@@ -125,6 +161,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     stumble = 1.1;
     bannerT = 0;
     obs.clear();
+    shots.clear();
     spawn = 1.9;
   }
 
@@ -139,6 +176,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     }
     if (duck > 0) duck -= dt;
     if (bannerT > 0) bannerT -= dt;
+    if (cd > 0) cd -= dt;
     final falling = stumble > 0;
     if (falling) stumble -= dt;
     final sp = falling ? 70.0 : speed;
@@ -146,9 +184,9 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     if (!falling) {
       final before = level;
       meters += speed * dt / 50;
-      level = min(meters ~/ 100, 10);
+      level = min(meters ~/ 100, 12);
       if (level > before) bannerT = 1.6;
-      speed = min(230.0 + level * 30, 520.0);
+      speed = min(230.0 + meters * 0.4, 640.0); // acelera de forma continua
       spawn -= dt;
       if (spawn <= 0) _spawn();
     }
@@ -168,6 +206,19 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
       p.life -= dt;
     }
     puffs.removeWhere((p) => p.life <= 0);
+    for (final sh in shots) {
+      sh.x += 640 * dt;
+      for (final o in obs) {
+        if (o.bird && !o.dead && !sh.dead && sh.x > o.x && sh.x < o.x + o.w &&
+            sh.h > o.base - 4 && sh.h < o.base + o.h + 4) {
+          sh.dead = true;
+          o.dead = true;
+          meters += 15;
+        }
+      }
+    }
+    shots.removeWhere((sh) => sh.dead || sh.x > worldW + 20);
+    obs.removeWhere((o) => o.dead);
     final ducking = duck > 0 && y == 0;
     final ph = ducking ? 32.0 : 50.0;
     var crashed = false;
@@ -230,10 +281,10 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
                           child: Text('${p[0]} min · 🪙 ${p[1]}')),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Toca arriba para saltar y abajo para agacharte · récord 🏆 $best m',
+                  Text('Arriba: saltar · abajo: agacharte · ⭐: disparar a los pájaros · récord 🏆 $best m',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  const Text('Cada 100 m sin caer sube el nivel; si caes, vuelves al nivel 0',
+                  const Text('Cada 100 m sin caer sube el nivel y la velocidad; si caes, vuelves al nivel 0',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                 ]),
@@ -248,13 +299,39 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
             final ang = stumble > 0 ? -1.2 * sin(pi * min(1.0, (1.1 - stumble) / 1.1)) : 0.0;
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) => d.localPosition.dy > worldH * 0.62 ? _duck() : _jump(),
+              onTapDown: (d) {
+                if (d.localPosition.dx > worldW - 90 && d.localPosition.dy > worldH - 90) {
+                  _shoot();
+                } else if (d.localPosition.dy > worldH * 0.62) {
+                  _duck();
+                } else {
+                  _jump();
+                }
+              },
               child: Stack(children: [
                 Positioned.fill(
                   child: CustomPaint(
                       painter: _GamePainter(
-                          widget.animal, gy, scroll, meters, obs, puffs, y, stumble)),
+                          widget.animal, gy, scroll, meters, obs, puffs, shots, y, stumble)),
                 ),
+                if (playing)
+                  Positioned(
+                    right: 14,
+                    bottom: 14,
+                    child: IgnorePointer(
+                      child: Opacity(
+                        opacity: cd > 0 ? 0.4 : 1,
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                              color: Color(0xFFFFD43B), shape: BoxShape.circle),
+                          child: const Text('⭐', style: TextStyle(fontSize: 30)),
+                        ),
+                      ),
+                    ),
+                  ),
                 Positioned(
                   left: _px - 0.7 * _sz,
                   top: gy - y - bob - 1.15 * _sz,
@@ -301,8 +378,9 @@ class _GamePainter extends CustomPainter {
   final double gy, scroll, meters, y, stumble;
   final List<_Obs> obs;
   final List<_Puff> puffs;
-  _GamePainter(this.animal, this.gy, this.scroll, this.meters, this.obs, this.puffs, this.y,
-      this.stumble);
+  final List<_Shot> shots;
+  _GamePainter(this.animal, this.gy, this.scroll, this.meters, this.obs, this.puffs, this.shots,
+      this.y, this.stumble);
 
   static const _top = [Color(0xFF8EC9F5), Color(0xFFFF9A6B), Color(0xFF1B1F4F)];
   static const _bot = [Color(0xFFDFF3FF), Color(0xFFFFD9A8), Color(0xFF4A3F8F)];
@@ -396,6 +474,9 @@ class _GamePainter extends CustomPainter {
       }
       final bob = o.bird ? sin(scroll * 0.05 + o.x) * 3 : 0.0;
       _emoji(c, o.e, Offset(o.x + o.w / 2, gy - o.base - o.h / 2 - 2 + bob), o.h * 1.1);
+    }
+    for (final sh in shots) {
+      _emoji(c, '⭐', Offset(sh.x, gy - sh.h), 20);
     }
     // sombra y polvo del animal
     c.drawOval(

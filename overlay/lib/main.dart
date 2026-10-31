@@ -111,7 +111,9 @@ class _HomeState extends State<HomeScreen> {
   int mode = (DateTime.now().hour >= 22 || DateTime.now().hour < 6) ? 2 : 0;
   late double minutes = mode == 2 ? 480.0 : 25.0;
   String? bubble;
+  bool mouth = false; // la boca solo se mueve un ratito
   Timer? _bt;
+  Timer? _mt;
   Timer? _clock;
 
   @override
@@ -120,6 +122,8 @@ class _HomeState extends State<HomeScreen> {
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
+    _ch.invokeMethod('musicVolume', store.musicVol);
+    if (store.music > 0) _ch.invokeMethod('musicPlay', store.music);
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -132,6 +136,7 @@ class _HomeState extends State<HomeScreen> {
   @override
   void dispose() {
     _bt?.cancel();
+    _mt?.cancel();
     _clock?.cancel();
     super.dispose();
   }
@@ -140,7 +145,15 @@ class _HomeState extends State<HomeScreen> {
   void _talk() {
     final p = loadPhrases();
     if (p.isEmpty) return;
-    setState(() => bubble = p[Random().nextInt(p.length)]);
+    final t = p[Random().nextInt(p.length)];
+    setState(() {
+      bubble = t;
+      mouth = mode != 2;
+    });
+    _mt?.cancel();
+    _mt = Timer(Duration(milliseconds: min(2200, 400 + t.length * 55)), () {
+      if (mounted) setState(() => mouth = false);
+    });
     _bt?.cancel();
     _bt = Timer(const Duration(seconds: 5), () {
       if (mounted) setState(() => bubble = null);
@@ -305,7 +318,8 @@ class _HomeState extends State<HomeScreen> {
                         animal: animal,
                         size: 200,
                         mode: mode,
-                        acc: store.accIds(animal)),
+                        acc: store.accIds(animal),
+                        emotion: mouth ? 'talk' : null),
                   ),
                 ),
               ),
@@ -378,7 +392,10 @@ class _HomeState extends State<HomeScreen> {
               ActionChip(
                   label: Text('🎵 Música: ${musicShort[store.music]}'),
                   onPressed: () {
-                    store.p.setInt('music', (store.music + 1) % 4);
+                    final n = (store.music + 1) % 5;
+                    store.p.setInt('music', n);
+                    _ch.invokeMethod('musicStop');
+                    if (n > 0) _ch.invokeMethod('musicPlay', n);
                     setState(() {});
                   }),
               const SizedBox(height: 8),
@@ -649,6 +666,8 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   bool done = false;
   String? speech; // frase que dice el animal desde la boca
   Timer? _speechT;
+  Timer? _mouthT;
+  bool talking = false; // boca en movimiento solo unos segundos
   String? emotion; // focus | sad | happy
   Timer? _emoT;
 
@@ -682,7 +701,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     _chatT?.cancel();
     _emoT?.cancel();
     _speechT?.cancel();
-    _ch.invokeMethod('musicStop');
+    _mouthT?.cancel();
     _ch.invokeMethod('cancelEnd');
     _ch.invokeMethod('setBlocking', false);
     super.dispose();
@@ -703,7 +722,14 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     if (text == null && phrases.isEmpty) return;
     final msg = text ?? phrases[_rnd.nextInt(phrases.length)];
-    setState(() => speech = msg);
+    setState(() {
+      speech = msg;
+      talking = true;
+    });
+    _mouthT?.cancel();
+    _mouthT = Timer(Duration(milliseconds: min(2200, 400 + msg.length * 55)), () {
+      if (mounted) setState(() => talking = false);
+    });
     _speechT?.cancel();
     _speechT = Timer(const Duration(seconds: 8), () {
       if (mounted) setState(() => speech = null);
@@ -794,13 +820,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   }
 
   void _nextTrack() {
-    final n = (store.music + 1) % 4;
+    final n = (store.music + 1) % 5;
     store.p.setInt('music', n);
-    if (n == 0) {
-      _ch.invokeMethod('musicStop');
-    } else {
-      _ch.invokeMethod('musicPlay', n);
-    }
+    _ch.invokeMethod('musicStop');
+    if (n > 0) _ch.invokeMethod('musicPlay', n);
     setState(() {});
   }
 
@@ -920,7 +943,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                         size: 150,
                         mode: widget.mode,
                         acc: store.accIds(widget.animal),
-                        emotion: emotion ?? ((speech != null && widget.mode != 2) ? 'talk' : null)),
+                        emotion: emotion ?? ((talking && widget.mode != 2) ? 'talk' : null)),
                     if (emotion == 'focus' || emotion == 'happy')
                       Positioned(
                           top: 0,
