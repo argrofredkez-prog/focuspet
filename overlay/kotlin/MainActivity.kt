@@ -80,18 +80,6 @@ class MainActivity : FlutterActivity() {
                         if (!BlockerService.blocking) Dnd.disable(applicationContext)
                         result.success(null)
                     }
-                    "musicPlay" -> {
-                        MusicPlayer.play(applicationContext, (call.arguments as Number).toInt())
-                        result.success(null)
-                    }
-                    "musicStop" -> {
-                        MusicPlayer.stop()
-                        result.success(null)
-                    }
-                    "musicVolume" -> {
-                        MusicPlayer.setVolume((call.arguments as Number).toFloat())
-                        result.success(null)
-                    }
                     "setBrightness" -> {
                         val v = (call.arguments as Number).toFloat()
                         val lp = window.attributes
@@ -124,10 +112,5 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
-    }
-
-    override fun onDestroy() {
-        if (isFinishing) MusicPlayer.stop()
-        super.onDestroy()
     }
 }

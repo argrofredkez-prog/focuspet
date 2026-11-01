@@ -36,10 +36,9 @@ object EndAlarm {
 class EndReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         Dnd.disable(context)
-        MusicPlayer.stop()
         if (intent?.getBooleanExtra("v", true) == true) {
             val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            val pattern = longArrayOf(0, 500, 200, 500, 200, 900)
+            val pattern = longArrayOf(0, 900, 300, 900, 300, 900, 300, 1300, 300, 1800)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 v.vibrate(VibrationEffect.createWaveform(pattern, -1))
             } else {

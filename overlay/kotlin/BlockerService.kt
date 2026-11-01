@@ -67,7 +67,19 @@ class BlockerService : AccessibilityService() {
         if (!blocking || e.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = e.packageName?.toString() ?: return
         if (pkg == packageName || pkg in allowed || pkg in extra || pkg.contains("inputmethod")) return
+        // modo flexible: se puede usar el móvil (pantalla de inicio / lista de apps) para abrir las permitidas
+        if (extra.isNotEmpty() && pkg in launchers) return
         bringAppToFront()
+    }
+
+    private val launchers: Set<String> by lazy {
+        try {
+            packageManager.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+            ).map { it.activityInfo.packageName }.toSet()
+        } catch (e: Exception) {
+            emptySet()
+        }
     }
 
     fun lockNow() {

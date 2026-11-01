@@ -74,8 +74,9 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
     final it = itemById(id);
     final b = it.img;
     if (b == null) return const SizedBox();
-    final w = (it.slot == 'eyes' ? 40.0 : (it.slot == 'back' ? 46.0 : 28.0)) * sz / 100;
-    const ys = {'eyes': 33.0, 'neck': 54.0, 'face': 46.0, 'back': 70.0, 'hand': 62.0};
+    const ws = {'eyes': 40.0, 'back': 52.0, 'head': 40.0, 'body': 46.0, 'neck': 32.0};
+    final w = (ws[it.slot] ?? 28.0) * sz / 100;
+    const ys = {'eyes': 33.0, 'neck': 54.0, 'face': 46.0, 'back': 70.0, 'hand': 62.0, 'body': 67.0};
     final cy = ys[it.slot] ?? 6.0;
     final cx = it.slot == 'hand' ? 78.0 : 50.0;
     return Positioned(
@@ -282,6 +283,8 @@ class _AnimalPainter extends CustomPainter {
 
   Offset get _hl => clap >= 0
       ? Offset(50 - (3 + 11 * (0.5 + 0.5 * cos(clap * 2 * pi))), 62)
+      : emo == 'fight'
+      ? Offset(23 + 3 * sin(DateTime.now().millisecondsSinceEpoch / 140), 34)
       : mode == 1
       ? const Offset(23, 41)
       : (mode == 0
@@ -531,10 +534,26 @@ class _AnimalPainter extends CustomPainter {
           final tp = Path()
             ..moveTo(66, 82)
             ..cubicTo(84, 88, 94, 74, 90, 60);
-          c.drawPath(tp, _l(p.line, 11));
-          c.drawPath(tp, _l(p.base, 9));
           final m = tp.computeMetrics().first;
-          for (double d = 6; d < m.length - 2; d += 8) {
+          final lp = <Offset>[], rp = <Offset>[];
+          for (double d = 0; d <= m.length; d += 1.5) {
+            final t = m.getTangentForOffset(d)!;
+            final w = 5.5 * (1 - d / m.length) + 0.2; // acaba en punta
+            final n = Offset(-t.vector.dy, t.vector.dx);
+            lp.add(t.position + n * w);
+            rp.add(t.position - n * w);
+          }
+          final poly = Path()..moveTo(lp.first.dx, lp.first.dy);
+          for (final q in lp.skip(1)) {
+            poly.lineTo(q.dx, q.dy);
+          }
+          for (final q in rp.reversed) {
+            poly.lineTo(q.dx, q.dy);
+          }
+          poly.close();
+          c.drawPath(poly, _f(p.base));
+          c.drawPath(poly, _l(p.line, 1.3));
+          for (double d = 6; d < m.length * 0.8; d += 8) {
             final t = m.getTangentForOffset(d)!;
             final n = Offset(-t.vector.dy, t.vector.dx);
             final tip = t.position - n * 8;
@@ -717,20 +736,9 @@ class _AnimalPainter extends CustomPainter {
         break;
       case Animal.unicornio:
         _both(c, () {
-          final path = Path()
-            ..moveTo(33, 20)
-            ..lineTo(29, 2)
-            ..lineTo(44, 14)
-            ..close();
-          c.drawPath(path, _f(p.base));
-          c.drawPath(path, _l(p.line, 1.1));
-          c.drawPath(
-              Path()
-                ..moveTo(34, 17)
-                ..lineTo(32, 7)
-                ..lineTo(40, 14)
-                ..close(),
-              _f(p.accent));
+          c.drawCircle(const Offset(30, 17), 8, _f(p.base));
+          c.drawCircle(const Offset(30, 17), 8, _l(p.line, 1.1));
+          c.drawCircle(const Offset(30, 17), 4.5, _f(const Color(0xFFFFC2DB)));
         });
         break;
       case Animal.tigre:
@@ -742,8 +750,20 @@ class _AnimalPainter extends CustomPainter {
         break;
       case Animal.cocodrilo:
         _both(c, () {
-          c.drawCircle(const Offset(37, 14), 7.5, _f(p.base));
-          c.drawCircle(const Offset(37, 14), 7.5, _l(p.line, 1.1));
+          final path = Path()
+            ..moveTo(31, 19)
+            ..lineTo(34, 1)
+            ..lineTo(45, 13)
+            ..close();
+          c.drawPath(path, _f(p.base));
+          c.drawPath(path, _l(p.line, 1.1));
+          c.drawPath(
+              Path()
+                ..moveTo(34, 15)
+                ..lineTo(35.5, 6)
+                ..lineTo(40, 12.5)
+                ..close(),
+              _f(const Color(0xFF8EDC96)));
         });
         break;
     }
@@ -756,15 +776,19 @@ class _AnimalPainter extends CustomPainter {
     c.drawOval(r, _l(p.line, 1.3));
     if (a == Animal.unicornio) {
       final h = Path()
-        ..moveTo(44, 13)
-        ..lineTo(50, -6)
-        ..lineTo(56, 13)
+        ..moveTo(45, 13)
+        ..lineTo(50, -2)
+        ..lineTo(55, 13)
         ..close();
       c.drawPath(h, _g(h.getBounds(), const Color(0xFFFFF1A8), const Color(0xFFFFC94D)));
       c.drawPath(h, _l(const Color(0xFFD99A1E), 1));
-      c.drawLine(const Offset(46.5, 10), const Offset(52, 8), _l(const Color(0xFFD99A1E), 0.8));
-      c.drawLine(const Offset(47.5, 5.5), const Offset(52.5, 3.5), _l(const Color(0xFFD99A1E), 0.8));
-      c.drawLine(const Offset(48.5, 1), const Offset(52, -0.5), _l(const Color(0xFFD99A1E), 0.8));
+      c.drawLine(const Offset(46.5, 10), const Offset(53, 8), _l(const Color(0xFFD99A1E), 0.8));
+      c.drawLine(const Offset(47.5, 6), const Offset(52.5, 4), _l(const Color(0xFFD99A1E), 0.8));
+      // flequillo rosa
+      for (int i = 0; i < 3; i++) {
+        c.drawArc(Rect.fromCenter(center: Offset(43.0 + i * 7, 15), width: 8, height: 7), pi, pi, false,
+            _l(const [Color(0xFFFF8FB8), Color(0xFFFFB6D5), Color(0xFFFF8FB8)][i], 2.6));
+      }
     }
     if (a == Animal.tigre) {
       final st = _l(const Color(0xFF3A2A1E), 2.4);
@@ -857,7 +881,7 @@ class _AnimalPainter extends CustomPainter {
           c.drawLine(e.translate(-4, -6), e.translate(-5.8, -8.4), _l(ink, 0.9));
         }
       }
-      if ((mode == 1 || emo == 'focus') && emo != 'happy' && emo != 'sad') {
+      if ((mode == 1 || emo == 'focus' || emo == 'fight') && emo != 'happy' && emo != 'sad') {
         c.drawLine(const Offset(33.5, 24.5), const Offset(43.5, 27), _l(ink, 1.8));
       } else if (emo == 'sad') {
         c.drawLine(const Offset(34, 26.5), const Offset(43.5, 22.5), _l(ink, 1.8));
@@ -889,6 +913,9 @@ class _AnimalPainter extends CustomPainter {
     } else if (emo == 'sad') {
       c.drawArc(Rect.fromCenter(center: Offset(50, my + 2.5), width: 9, height: 5), pi + 0.2, pi - 0.4,
           false, _l(ink, 1.4));
+    } else if (emo == 'fight') {
+      c.drawArc(Rect.fromCenter(center: Offset(50, my + 1.5), width: 11, height: 6), 0.2, pi - 0.4,
+          false, _l(ink, 1.5));
     } else if (emo == 'focus') {
       c.drawLine(Offset(46.5, my), Offset(53.5, my), _l(ink, 1.5));
     } else if (eat >= 0 && eat < 0.42) {
@@ -1145,5 +1172,5 @@ class _AnimalPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AnimalPainter o) =>
-      o.a != a || o.mode != mode || o.blink != blink || o.eat != eat || o.emo != emo || o.clap != clap || emo == 'sad' || emo == 'talk' || o.acc.join(',') != acc.join(',');
+      o.a != a || o.mode != mode || o.blink != blink || o.eat != eat || o.emo != emo || o.clap != clap || emo == 'sad' || emo == 'talk' || emo == 'fight' || o.acc.join(',') != acc.join(',');
 }

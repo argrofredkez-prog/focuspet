@@ -122,8 +122,6 @@ class _HomeState extends State<HomeScreen> {
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
-    _ch.invokeMethod('musicVolume', store.musicVol);
-    if (store.music > 0) _ch.invokeMethod('musicPlay', store.music);
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
@@ -387,16 +385,6 @@ class _HomeState extends State<HomeScreen> {
                 Text('Mitad de monedas · elige las apps antes de empezar',
                     style: TextStyle(fontSize: 12, color: ink)),
               const SizedBox(height: 8),
-              ActionChip(
-                  label: Text('🎵 Música: ${musicShort[store.music]}'),
-                  onPressed: () {
-                    final n = (store.music + 1) % 5;
-                    store.p.setInt('music', n);
-                    _ch.invokeMethod('musicStop');
-                    if (n > 0) _ch.invokeMethod('musicPlay', n);
-                    setState(() {});
-                  }),
-              const SizedBox(height: 8),
               FilledButton(
                   style: FilledButton.styleFrom(
                       backgroundColor: ink,
@@ -499,18 +487,6 @@ class _SettingsState extends State<SettingsScreen> {
             store.p.setBool('dnd', v);
             setState(() {});
           },
-        ),
-        ListTile(
-          title: Text('Volumen de la música 🎵 ${(store.musicVol * 100).round()}%'),
-          subtitle: Slider(
-              value: store.musicVol,
-              min: 0.05,
-              max: 1.0,
-              onChanged: (v) {
-                store.p.setDouble('mvol', v);
-                _ch.invokeMethod('musicVolume', v);
-                setState(() {});
-              }),
         ),
         SwitchListTile(
           title: const Text('Modo estricto 🔒'),
@@ -680,15 +656,13 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
       });
     }
     _ch.invokeMethod('setDnd', store.blockNotifs);
-    _ch.invokeMethod('musicVolume', store.musicVol);
-    if (store.music > 0) _ch.invokeMethod('musicPlay', store.music);
     _ch.invokeMethod('setBlocking', true);
     _ch.invokeMethod('lockScreen'); // apaga la pantalla
     _scheduleEnd();
     _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     if (widget.mode != 2) {
-      _chatT = Timer.periodic(const Duration(seconds: 25), (_) => _say());
-      Future.delayed(const Duration(milliseconds: 3500), () => _say());
+      _chatT = Timer.periodic(const Duration(seconds: 12), (_) => _say(null, true));
+      Future.delayed(const Duration(milliseconds: 2500), () => _say(null, true));
     }
   }
 
@@ -700,6 +674,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     _emoT?.cancel();
     _speechT?.cancel();
     _mouthT?.cancel();
+    _focusT?.cancel();
     _ch.invokeMethod('cancelEnd');
     _ch.invokeMethod('setBlocking', false);
     super.dispose();
@@ -716,8 +691,35 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
         {'at': endAt.millisecondsSinceEpoch, 'v': widget.mode != 2, 'mode': widget.mode});
   }
 
-  void _say([String? text]) {
+  int _auto = 0;
+  Timer? _focusT;
+
+  // cada 2 frases seguidas: gesto de ánimo y la pantalla se apaga para seguir enfocado
+  void _focusOn() {
+    if (!mounted || done || pauseStart != null || widget.mode == 2) return;
+    setState(() {
+      emotion = 'fight';
+      speech = '¡Sigue enfocado! 💪';
+      talking = true;
+    });
+    _mouthT?.cancel();
+    _mouthT = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) setState(() => talking = false);
+    });
+    _focusT?.cancel();
+    _focusT = Timer(const Duration(milliseconds: 3200), () {
+      if (!mounted) return;
+      setState(() {
+        emotion = null;
+        speech = null;
+      });
+      if (!done && pauseStart == null) _ch.invokeMethod('lockScreen');
+    });
+  }
+
+  void _say([String? text, bool auto = false]) {
     if (!mounted) return;
+    if (auto && (emotion == 'fight' || pauseStart != null)) return;
     if (text == null && phrases.isEmpty) return;
     final msg = text ?? phrases[_rnd.nextInt(phrases.length)];
     setState(() {
@@ -725,13 +727,16 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
       talking = true;
     });
     _mouthT?.cancel();
-    _mouthT = Timer(Duration(milliseconds: min(2200, 400 + msg.length * 55)), () {
+    _mouthT = Timer(Duration(milliseconds: min(6500, 900 + msg.length * 110)), () {
       if (mounted) setState(() => talking = false);
     });
     _speechT?.cancel();
     _speechT = Timer(const Duration(seconds: 8), () {
       if (mounted) setState(() => speech = null);
     });
+    if (auto && ++_auto % 2 == 0) {
+      Future.delayed(const Duration(seconds: 7), _focusOn);
+    }
   }
 
   Future<void> _addPhrase() async {
@@ -777,8 +782,23 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     }
   }
 
+  // 3 pausas gratis de 5 min; de la 4.ª a la 6.ª cuestan monedas; después = abandonar
+  int get _pauseCost => pausesUsed < maxPauses ? 0 : 10;
+
   void _pause() {
-    if (pausesUsed >= maxPauses) return;
+    if (pausesUsed >= maxPauses + 3) {
+      _abandon();
+      return;
+    }
+    final cost = _pauseCost;
+    if (cost > 0) {
+      if (store.coins < cost) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Te faltan monedas 🪙')));
+        return;
+      }
+      store.coins = store.coins - cost;
+    }
     _ch.invokeMethod('pause', pauseMinutes * 60 * 1000);
     _ch.invokeMethod('cancelEnd');
     setState(() {
@@ -818,14 +838,6 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
             title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
             content: Text('Has ganado $earned 🪙$extra')));
     if (mounted) Navigator.pop(context);
-  }
-
-  void _nextTrack() {
-    final n = (store.music + 1) % 5;
-    store.p.setInt('music', n);
-    _ch.invokeMethod('musicStop');
-    if (n > 0) _ch.invokeMethod('musicPlay', n);
-    setState(() {});
   }
 
   Widget _banner(String t) => TweenAnimationBuilder<double>(
@@ -945,10 +957,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                         mode: widget.mode,
                         acc: store.accIds(widget.animal),
                         emotion: emotion ?? ((talking && widget.mode != 2) ? 'talk' : null)),
-                    if (emotion == 'focus' || emotion == 'happy')
+                    if (emotion == 'focus' || emotion == 'fight' || emotion == 'happy')
                       Positioned(
                           top: 0,
-                          child: _banner(emotion == 'focus' ? 'FOCUS ON ⚡' : '¡Lo lograste! 👏')),
+                          child: _banner(emotion == 'happy' ? '¡Lo lograste! 👏' : 'FOCUS ON ⚡')),
                     if (speech != null && emotion == null && widget.mode != 2)
                       Positioned(
                           bottom: 127,
@@ -976,14 +988,16 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                     ]),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     FilledButton.tonal(
-                        onPressed: paused ? _resume : (left > 0 ? _pause : null),
-                        child: Text(paused ? 'Reanudar' : 'Pausar ($left/$maxPauses)')),
+                        onPressed: paused ? _resume : _pause,
+                        child: Text(paused
+                            ? 'Reanudar'
+                            : (left > 0
+                                ? 'Pausar 5 min ($left gratis)'
+                                : (pausesUsed < maxPauses + 3 ? 'Pausar 5 min (10 🪙)' : 'Pausar = abandonar')))),
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
                         onPressed: _addPhrase, icon: const Icon(Icons.chat_bubble_outline)),
                   ]),
-                  ActionChip(
-                      label: Text('🎵 ${musicShort[store.music]}'), onPressed: _nextTrack),
                   TextButton(
                       onPressed: _abandon,
                       child: Text('Abandonar', style: TextStyle(color: ink))),

@@ -72,6 +72,9 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     stumble = 0;
     duck = 0;
     level = 0;
+    jumps = 0;
+    glide = 0.7;
+    holding = false;
     bannerMsg = 'Nivel 0 · ¡a correr! 🏃';
     bannerT = 1.4;
     runBest = 0;
@@ -81,8 +84,20 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     setState(() {});
   }
 
+  int jumps = 0; // saltos usados en el aire (máx. 2)
+  double glide = 0.7; // tiempo de planeo disponible
+  bool holding = false;
+
   void _jump() {
-    if (playing && y == 0 && stumble <= 0) vy = 560;
+    if (!playing || stumble > 0) return;
+    if (y == 0) {
+      vy = 560;
+      jumps = 1;
+    } else if (jumps < 2) {
+      vy = 540; // doble salto
+      jumps = 2;
+    }
+    holding = true;
   }
 
   void _duck() {
@@ -92,6 +107,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
   static const _small = ['🪨', '🍄', '🪨', '🧊', '🪨'];
   static const _tall = ['🌵', '🌵', '🌲', '⛄', '🌋'];
   static const _fly = ['🦅', '🦅', '🦇', '🕊️', '🐉'];
+  static const _wall = ['📦', '🧱', '🧱', '🧊', '🪨'];
+  static const _pit = ['💧', '🔥', '🕳️', '❄️', '🔥'];
   static const _logE = ['🪵', '🪵', '🪵', '🧊', '🔥'];
   static const biomes = ['Pradera ☀️', 'Atardecer 🌇', 'Noche 🌙', 'Nieve ❄️', 'Volcán 🌋'];
 
@@ -107,7 +124,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     final pool = <int>[0, 1];
     if (level >= 1) pool.addAll([2, 8]);
     if (level >= 2) pool.add(3);
-    if (level >= 3) pool.add(4);
+    if (level >= 3) pool.addAll([4, 12]); // 12: muralla alta (doble salto)
+    if (level >= 4) pool.add(13); // 13: obstáculo ancho (mantener pulsado para planear)
     if (level >= 4) pool.addAll([5, 7]);
     if (level >= 5) pool.add(10);
     if (level >= 6) pool.addAll([6, 9]);
@@ -154,6 +172,20 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
         obs.add(_Obs(x + 56, 28, 54, 0, t));
         extra = 56;
         break;
+      case 12: // muralla de 3 bloques: hace falta doble salto
+        for (int k = 0; k < 3; k++) {
+          obs.add(_Obs(x, 34, 36, 36.0 * k, _wall[b]));
+        }
+        extra = 40;
+        break;
+      case 13: // charco/lava ancho: hay que planear
+        {
+          final w = min(speed * 0.88, 330.0);
+          final n = max(3, (w / 30).round());
+          obs.add(_Obs(x, w, 26, 0, List.filled(n, _pit[b]).join()));
+          extra = w;
+        }
+        break;
       default: // dos aves seguidas
         obs.add(_Obs(x, 34, 20, 34, _fly[b], bird: true));
         obs.add(_Obs(x + 100, 34, 20, 34, _fly[b], bird: true));
@@ -167,6 +199,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     meters = 0; // al caer, la racha y la dificultad vuelven a empezar
     level = 0;
     speed = 230;
+    holding = false;
     stumble = _fallT;
     bannerT = _fallT;
     bannerMsg = '💥 ¡Choque! Vuelves al nivel 0';
@@ -210,10 +243,18 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
       if (spawn <= 0) _spawn();
     }
     y += vy * dt;
-    vy -= 1500 * dt;
+    // mantener pulsado en el aire = planear (cae más despacio)
+    var grav = 1500.0;
+    if (holding && y > 0 && vy < 150 && glide > 0 && !falling) {
+      grav = 520;
+      glide -= dt;
+    }
+    vy -= grav * dt;
     if (y <= 0) {
       y = 0;
       vy = 0;
+      jumps = 0;
+      glide = 0.7;
     }
     dust -= dt;
     if (dust <= 0 && y == 0 && !falling) {
@@ -287,7 +328,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
                           child: Text('${p[0]} min · 🪙 ${p[1]}')),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Toca arriba para saltar y abajo para agacharte · récord 🏆 $best m',
+                  Text('Arriba: saltar (2.º toque en el aire: doble salto, mantén: planear) · abajo: agacharte · récord 🏆 $best m',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   const Text('Cada 100 m sin caer sube el nivel, la velocidad y cambia el paisaje; si caes, vuelves al nivel 0',
@@ -306,6 +347,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapDown: (d) => d.localPosition.dy > worldH * 0.62 ? _duck() : _jump(),
+              onTapUp: (_) => holding = false,
+              onTapCancel: () => holding = false,
               child: Stack(children: [
                 Positioned.fill(
                   child: CustomPaint(

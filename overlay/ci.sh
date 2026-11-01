@@ -10,8 +10,6 @@ mkdir -p $K android/app/src/main/res/xml android/app/src/main/res/values
 cp ../overlay/kotlin/*.kt $K/
 cp ../overlay/res/xml/*.xml android/app/src/main/res/xml/
 cp ../overlay/res/values/*.xml android/app/src/main/res/values/
-mkdir -p android/app/src/main/res/raw
-cp ../overlay/res/raw/* android/app/src/main/res/raw/
 mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
 cp ../overlay/res/drawable/*.xml android/app/src/main/res/drawable/
 mkdir -p android/app/src/main/res/drawable-nodpi
