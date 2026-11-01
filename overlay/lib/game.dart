@@ -16,12 +16,6 @@ class _Obs {
   _Obs(this.x, this.w, this.h, this.base, this.e, {this.bird = false});
 }
 
-class _Shot {
-  double x, h; // h = altura sobre el suelo
-  bool dead = false;
-  _Shot(this.x, this.h);
-}
-
 class _Puff {
   double x, life;
   _Puff(this.x, this.life);
@@ -46,12 +40,12 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
   final Random rnd = Random();
   final List<_Obs> obs = [];
   final List<_Puff> puffs = [];
-  final List<_Shot> shots = [];
-  double cd = 0; // enfriamiento del disparo
   bool playing = false;
   double total = 0, timeLeft = 0, meters = 0, speed = 230, y = 0, vy = 0, spawn = 1.5;
   double stumble = 0, duck = 0, bannerT = 0, dust = 0, scroll = 0, worldW = 400, worldH = 500;
   int level = 0, runBest = 0;
+  String bannerMsg = '';
+  static const _fallT = 2.4; // tiempo antes de reiniciar tras chocar
   int best = store.p.getInt('bestm') ?? 0;
 
   @override
@@ -69,8 +63,6 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     store.coins = store.coins - cost;
     obs.clear();
     puffs.clear();
-    shots.clear();
-    cd = 0;
     total = timeLeft = mins * 60.0;
     meters = 0;
     speed = 230;
@@ -80,6 +72,8 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     stumble = 0;
     duck = 0;
     level = 0;
+    bannerMsg = 'Nivel 0 · ¡a correr! 🏃';
+    bannerT = 1.4;
     runBest = 0;
     playing = true;
     _last = Duration.zero;
@@ -91,66 +85,81 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     if (playing && y == 0 && stumble <= 0) vy = 560;
   }
 
-  void _shoot() {
-    if (!playing || cd > 0 || stumble > 0) return;
-    cd = 0.45;
-    shots.add(_Shot(_px + 18, y + 24));
-  }
-
   void _duck() {
     if (playing && y == 0 && stumble <= 0) duck = 0.55;
   }
 
+  static const _small = ['🪨', '🍄', '🪨', '🧊', '🪨'];
+  static const _tall = ['🌵', '🌵', '🌲', '⛄', '🌋'];
+  static const _fly = ['🦅', '🦅', '🦇', '🕊️', '🐉'];
+  static const _logE = ['🪵', '🪵', '🪵', '🧊', '🔥'];
+  static const biomes = ['Pradera ☀️', 'Atardecer 🌇', 'Noche 🌙', 'Nieve ❄️', 'Volcán 🌋'];
+
   void _spawn() {
-    // separación variable: a veces muy juntos, a veces muy separados
     final g = rnd.nextDouble();
     double gap = max(430.0 - level * 20, 220.0) + rnd.nextDouble() * 170;
     if (level >= 2 && g < 0.28) {
-      gap = speed * (0.85 + rnd.nextDouble() * 0.25);
+      gap = speed * (0.85 + rnd.nextDouble() * 0.25); // muy juntos
     } else if (g > 0.8) {
-      gap = speed * (1.5 + rnd.nextDouble() * 0.8);
+      gap = speed * (1.5 + rnd.nextDouble() * 0.8); // muy separados
     }
-    spawn = gap / speed;
+    final b = (level ~/ 3) % 5; // el paisaje cambia cada 3 niveles
     final pool = <int>[0, 1];
-    if (level >= 1) pool.add(2); // cactus alto
-    if (level >= 2) pool.add(3); // grupo de 2
-    if (level >= 3) pool.add(4); // ave baja: saltar
-    if (level >= 4) pool.add(5); // ave media: agacharse
-    if (level >= 6) pool.add(6); // grupo de 3
-    if (level >= 5) pool.add(7); // pájaro grande: hay que dispararle
-    if (level >= 7) pool.addAll([8, 6]); // cactus doble alto
+    if (level >= 1) pool.addAll([2, 8]);
+    if (level >= 2) pool.add(3);
+    if (level >= 3) pool.add(4);
+    if (level >= 4) pool.addAll([5, 7]);
+    if (level >= 5) pool.add(10);
+    if (level >= 6) pool.addAll([6, 9]);
+    if (level >= 8) pool.add(11);
     final x = worldW + 30;
-    var pick = pool[rnd.nextInt(pool.length)];
-    if (pick == 7 && obs.isNotEmpty && obs.last.x > worldW * 0.45) pick = 0;
-    switch (pick) {
+    final t = _tall[b];
+    double extra = 0;
+    switch (pool[rnd.nextInt(pool.length)]) {
       case 0:
-        obs.add(_Obs(x, 26, 36, 0, '🌵'));
+        obs.add(_Obs(x, 26, 36, 0, t));
         break;
       case 1:
-        obs.add(_Obs(x, 30, 26, 0, '🪨'));
+        obs.add(_Obs(x, 30, 26, 0, _small[b]));
         break;
       case 2:
-        obs.add(_Obs(x, 28, 54, 0, '🌵'));
+        obs.add(_Obs(x, 28, 54, 0, t));
         break;
       case 3:
-        obs.add(_Obs(x, 54, 36, 0, '🌵🌵'));
+        obs.add(_Obs(x, 54, 36, 0, '$t$t'));
         break;
       case 4:
-        obs.add(_Obs(x, 34, 22, 6, '🦅', bird: true));
+        obs.add(_Obs(x, 34, 22, 6, _fly[b], bird: true)); // saltar
         break;
       case 5:
-        obs.add(_Obs(x, 34, 20, 34, '🦅', bird: true));
+        obs.add(_Obs(x, 34, 20, 34, _fly[b], bird: true)); // agacharse
+        break;
+      case 6:
+        obs.add(_Obs(x, 82, 36, 0, '$t$t$t'));
         break;
       case 7:
-        obs.add(_Obs(x, 44, 82, 0, '🦜', bird: true));
-        spawn = max(spawn, 1.3);
+        obs.add(_Obs(x, 58, 54, 0, '$t$t'));
         break;
       case 8:
-        obs.add(_Obs(x, 58, 54, 0, '🌵🌵'));
+        obs.add(_Obs(x, 46, 22, 0, _logE[b]));
         break;
-      default:
-        obs.add(_Obs(x, 82, 36, 0, '🌵🌵🌵'));
+      case 9: // obstáculo y, justo después, un ave: saltar y agacharse
+        obs.add(_Obs(x, 28, 54, 0, t));
+        obs.add(_Obs(x + 230, 34, 20, 34, _fly[b], bird: true));
+        extra = 230;
+        break;
+      case 10: // escalera: 3 alturas seguidas
+        obs.add(_Obs(x, 28, 26, 0, _small[b]));
+        obs.add(_Obs(x + 28, 28, 40, 0, t));
+        obs.add(_Obs(x + 56, 28, 54, 0, t));
+        extra = 56;
+        break;
+      default: // dos aves seguidas
+        obs.add(_Obs(x, 34, 20, 34, _fly[b], bird: true));
+        obs.add(_Obs(x + 100, 34, 20, 34, _fly[b], bird: true));
+        extra = 100;
     }
+    spawn = (gap + extra) / speed;
   }
 
   void _crash() {
@@ -158,10 +167,10 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     meters = 0; // al caer, la racha y la dificultad vuelven a empezar
     level = 0;
     speed = 230;
-    stumble = 1.1;
-    bannerT = 0;
+    stumble = _fallT;
+    bannerT = _fallT;
+    bannerMsg = '💥 ¡Choque! Vuelves al nivel 0';
     obs.clear();
-    shots.clear();
     spawn = 1.9;
   }
 
@@ -176,17 +185,27 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     }
     if (duck > 0) duck -= dt;
     if (bannerT > 0) bannerT -= dt;
-    if (cd > 0) cd -= dt;
     final falling = stumble > 0;
-    if (falling) stumble -= dt;
+    if (falling) {
+      stumble -= dt;
+      if (stumble <= 0) {
+        bannerMsg = 'Nivel 0 · ¡adelante! 🏃';
+        bannerT = 1.4;
+      }
+    }
     final sp = falling ? 70.0 : speed;
     scroll += sp * dt;
     if (!falling) {
       final before = level;
       meters += speed * dt / 50;
-      level = min(meters ~/ 100, 12);
-      if (level > before) bannerT = 1.6;
-      speed = min(230.0 + meters * 0.4, 640.0); // acelera de forma continua
+      level = meters ~/ 100;
+      if (level > before) {
+        bannerT = 1.8;
+        bannerMsg = level % 3 == 0
+            ? '¡Nivel $level! · ${biomes[(level ~/ 3) % 5]}'
+            : '¡Nivel $level! ⚡';
+      }
+      speed = min(230.0 + meters * 0.42, 680.0); // acelera de forma continua
       spawn -= dt;
       if (spawn <= 0) _spawn();
     }
@@ -206,19 +225,6 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
       p.life -= dt;
     }
     puffs.removeWhere((p) => p.life <= 0);
-    for (final sh in shots) {
-      sh.x += 640 * dt;
-      for (final o in obs) {
-        if (o.bird && !o.dead && !sh.dead && sh.x > o.x && sh.x < o.x + o.w &&
-            sh.h > o.base - 4 && sh.h < o.base + o.h + 4) {
-          sh.dead = true;
-          o.dead = true;
-          meters += 15;
-        }
-      }
-    }
-    shots.removeWhere((sh) => sh.dead || sh.x > worldW + 20);
-    obs.removeWhere((o) => o.dead);
     final ducking = duck > 0 && y == 0;
     final ph = ducking ? 32.0 : 50.0;
     var crashed = false;
@@ -281,10 +287,10 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
                           child: Text('${p[0]} min · 🪙 ${p[1]}')),
                   ]),
                   const SizedBox(height: 4),
-                  Text('Arriba: saltar · abajo: agacharte · ⭐: disparar a los pájaros · récord 🏆 $best m',
+                  Text('Toca arriba para saltar y abajo para agacharte · récord 🏆 $best m',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  const Text('Cada 100 m sin caer sube el nivel y la velocidad; si caes, vuelves al nivel 0',
+                  const Text('Cada 100 m sin caer sube el nivel, la velocidad y cambia el paisaje; si caes, vuelves al nivel 0',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                 ]),
@@ -296,42 +302,16 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
             final gy = worldH * 0.72;
             final ducking = playing && duck > 0 && y == 0 && stumble <= 0;
             final bob = (playing && y == 0 && stumble <= 0) ? sin(scroll * 0.06).abs() * 3 : 0.0;
-            final ang = stumble > 0 ? -1.2 * sin(pi * min(1.0, (1.1 - stumble) / 1.1)) : 0.0;
+            final ang = stumble > 0 ? -1.2 * sin(pi * min(1.0, (_fallT - stumble) / _fallT)) : 0.0;
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTapDown: (d) {
-                if (d.localPosition.dx > worldW - 90 && d.localPosition.dy > worldH - 90) {
-                  _shoot();
-                } else if (d.localPosition.dy > worldH * 0.62) {
-                  _duck();
-                } else {
-                  _jump();
-                }
-              },
+              onTapDown: (d) => d.localPosition.dy > worldH * 0.62 ? _duck() : _jump(),
               child: Stack(children: [
                 Positioned.fill(
                   child: CustomPaint(
                       painter: _GamePainter(
-                          widget.animal, gy, scroll, meters, obs, puffs, shots, y, stumble)),
+                          widget.animal, gy, scroll, meters, obs, puffs, y, stumble)),
                 ),
-                if (playing)
-                  Positioned(
-                    right: 14,
-                    bottom: 14,
-                    child: IgnorePointer(
-                      child: Opacity(
-                        opacity: cd > 0 ? 0.4 : 1,
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                              color: Color(0xFFFFD43B), shape: BoxShape.circle),
-                          child: const Text('⭐', style: TextStyle(fontSize: 30)),
-                        ),
-                      ),
-                    ),
-                  ),
                 Positioned(
                   left: _px - 0.7 * _sz,
                   top: gy - y - bob - 1.15 * _sz,
@@ -358,7 +338,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                         decoration: BoxDecoration(
                             color: const Color(0xFFFFD43B), borderRadius: BorderRadius.circular(20)),
-                        child: Text('¡Nivel $level! ⚡',
+                        child: Text(bannerMsg,
                             style: const TextStyle(
                                 color: kInk, fontWeight: FontWeight.w900, fontSize: 18)),
                       ),
@@ -378,12 +358,14 @@ class _GamePainter extends CustomPainter {
   final double gy, scroll, meters, y, stumble;
   final List<_Obs> obs;
   final List<_Puff> puffs;
-  final List<_Shot> shots;
-  _GamePainter(this.animal, this.gy, this.scroll, this.meters, this.obs, this.puffs, this.shots,
-      this.y, this.stumble);
+  _GamePainter(this.animal, this.gy, this.scroll, this.meters, this.obs, this.puffs, this.y, this.stumble);
 
-  static const _top = [Color(0xFF8EC9F5), Color(0xFFFF9A6B), Color(0xFF1B1F4F)];
-  static const _bot = [Color(0xFFDFF3FF), Color(0xFFFFD9A8), Color(0xFF4A3F8F)];
+  // 5 paisajes: pradera, atardecer, noche, nieve, volcán
+  static const _top = [Color(0xFF8EC9F5), Color(0xFFFF9A6B), Color(0xFF1B1F4F), Color(0xFFA9C7E8), Color(0xFF3A0D12)];
+  static const _bot = [Color(0xFFDFF3FF), Color(0xFFFFD9A8), Color(0xFF4A3F8F), Color(0xFFF2F8FF), Color(0xFFFF6A2B)];
+  static const _nt = [0.0, 0.25, 1.0, 0.15, 0.35];
+  static const _sun = [Color(0xFFFFE066), Color(0xFFFF8A3D), Color(0xFFFFF3B0), Color(0xFFFFFFFF), Color(0xFFFF3B1F)];
+  static const _gnd = [Color(0x00000000), Color(0xFFD9A066), Color(0xFF3E3A66), Color(0xFFEAF3FA), Color(0xFF4A2B2B)];
 
   void _emoji(Canvas c, String e, Offset center, double size) {
     final tp = TextPainter(
@@ -395,13 +377,13 @@ class _GamePainter extends CustomPainter {
   @override
   void paint(Canvas c, Size s) {
     // cielo: día -> atardecer -> noche según los metros sin caer
-    final cyc = meters / 150;
-    final i = cyc.floor() % 3;
-    final f = ((cyc - cyc.floor() - 0.3) / 0.7).clamp(0.0, 1.0).toDouble();
-    final j = (i + 1) % 3;
+    final cyc = meters / 300;
+    final i = cyc.floor() % 5;
+    final f = ((cyc - cyc.floor() - 0.6) / 0.4).clamp(0.0, 1.0).toDouble();
+    final j = (i + 1) % 5;
     final top = Color.lerp(_top[i], _top[j], f)!;
     final bot = Color.lerp(_bot[i], _bot[j], f)!;
-    final night = i == 2 ? 1 - f : (i == 1 ? f : 0.0);
+    final night = _nt[i] + (_nt[j] - _nt[i]) * f;
     final rect = Offset.zero & s;
     c.drawRect(
         rect,
@@ -416,7 +398,7 @@ class _GamePainter extends CustomPainter {
           Paint()..color = Colors.white.withAlpha((night * 220).round()));
     }
     final cel = Offset(s.width * 0.8, s.height * 0.16);
-    final sunC = Color.lerp(const Color(0xFFFFE066), const Color(0xFFFF8A3D), i == 0 ? f : 1.0)!;
+    final sunC = Color.lerp(_sun[i], _sun[j], f)!;
     c.drawCircle(cel, 44, Paint()..color = sunC.withAlpha(((1 - night) * 50).round()));
     c.drawCircle(cel, 24, Paint()..color = sunC.withAlpha(((1 - night) * 255).round()));
     c.drawCircle(cel, 22, Paint()..color = const Color(0xFFFFF3B0).withAlpha((night * 255).round()));
@@ -447,9 +429,29 @@ class _GamePainter extends CustomPainter {
       c.drawOval(Rect.fromCenter(center: Offset(x, yy), width: 80, height: 24), cloud);
       c.drawOval(Rect.fromCenter(center: Offset(x + 18, yy - 9), width: 46, height: 22), cloud);
     }
+    // nieve y brasas según el paisaje
+    final ws = (i == 3 ? 1 - f : 0.0) + (j == 3 ? f : 0.0);
+    final we = (i == 4 ? 1 - f : 0.0) + (j == 4 ? f : 0.0);
+    for (int k = 0; k < 36; k++) {
+      final r1 = (sin(k * 12.9898) * 43758.5453).abs() % 1.0;
+      final r2 = (sin(k * 78.233) * 43758.5453).abs() % 1.0;
+      final r3 = (sin(k * 39.346) * 43758.5453).abs() % 1.0;
+      if (ws > 0) {
+        final yy = (r2 * gy + scroll * (0.25 + r3 * 0.3)) % gy;
+        final xx = (r1 * s.width - scroll * 0.15 + sin(scroll * 0.02 + k) * 12) % s.width;
+        c.drawCircle(Offset(xx, yy), 1.6 + r3 * 1.6, Paint()..color = Colors.white.withAlpha((ws * 230).round()));
+      }
+      if (we > 0) {
+        final yy = gy - ((r2 * gy + scroll * (0.2 + r3 * 0.3)) % gy);
+        final xx = (r1 * s.width - scroll * 0.1) % s.width;
+        c.drawCircle(Offset(xx, yy), 1.4 + r3 * 1.8,
+            Paint()..color = Color.lerp(const Color(0xFFFFD43B), const Color(0xFFFF4D1F), r3)!.withAlpha((we * 220).round()));
+      }
+    }
     // suelo
     final base = animalColors[animal]!;
-    final ground = Color.lerp(Color.lerp(base, const Color(0xFF8B5A3C), 0.55)!, Colors.black, night * 0.4)!;
+    final g0 = Color.lerp(base, const Color(0xFF8B5A3C), 0.55)!;
+    final ground = Color.lerp(i == 0 ? g0 : _gnd[i], j == 0 ? g0 : _gnd[j], f)!;
     c.drawRect(Rect.fromLTWH(0, gy, s.width, s.height - gy), Paint()..color = ground);
     c.drawRect(Rect.fromLTWH(0, gy, s.width, 6),
         Paint()..color = Color.lerp(ground, Colors.white, 0.25)!);
@@ -475,9 +477,6 @@ class _GamePainter extends CustomPainter {
       final bob = o.bird ? sin(scroll * 0.05 + o.x) * 3 : 0.0;
       _emoji(c, o.e, Offset(o.x + o.w / 2, gy - o.base - o.h / 2 - 2 + bob), o.h * 1.1);
     }
-    for (final sh in shots) {
-      _emoji(c, '⭐', Offset(sh.x, gy - sh.h), 20);
-    }
     // sombra y polvo del animal
     c.drawOval(
         Rect.fromCenter(
@@ -489,7 +488,7 @@ class _GamePainter extends CustomPainter {
       c.drawCircle(Offset(p.x, gy - 2), 3 + (0.45 - p.life) * 9,
           Paint()..color = Colors.white.withAlpha((p.life / 0.45 * 150).round()));
     }
-    if (stumble > 0.8) _emoji(c, '✨', const Offset(_px + 6, 0).translate(0, gy - 70), 24);
+    if (stumble > _GameState._fallT - 0.3) _emoji(c, '✨', const Offset(_px + 6, 0).translate(0, gy - 70), 24);
   }
 
   @override

@@ -14,6 +14,8 @@ mkdir -p android/app/src/main/res/raw
 cp ../overlay/res/raw/* android/app/src/main/res/raw/
 mkdir -p android/app/src/main/res/drawable android/app/src/main/res/mipmap-anydpi-v26
 cp ../overlay/res/drawable/*.xml android/app/src/main/res/drawable/
+mkdir -p android/app/src/main/res/drawable-nodpi
+cp ../overlay/res/drawable-nodpi/*.png android/app/src/main/res/drawable-nodpi/
 cp ../overlay/res/mipmap-anydpi-v26/*.xml android/app/src/main/res/mipmap-anydpi-v26/
 for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
   mkdir -p android/app/src/main/res/mipmap-$d

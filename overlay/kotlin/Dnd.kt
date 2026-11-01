@@ -24,7 +24,8 @@ object Dnd {
             .putInt("dnd_msg", old.priorityMessageSenders)
             .putBoolean("dnd_on", true).apply()
         n.notificationPolicy = NotificationManager.Policy(
-            NotificationManager.Policy.PRIORITY_CATEGORY_CALLS or NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS or NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS,
+            NotificationManager.Policy.PRIORITY_CATEGORY_CALLS or NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS or NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS or
+                (if (Build.VERSION.SDK_INT >= 28) NotificationManager.Policy.PRIORITY_CATEGORY_MEDIA else 0), // la música sigue sonando
             NotificationManager.Policy.PRIORITY_SENDERS_ANY, NotificationManager.Policy.PRIORITY_SENDERS_ANY
         )
         n.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)

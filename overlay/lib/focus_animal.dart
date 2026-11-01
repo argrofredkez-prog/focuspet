@@ -6,7 +6,7 @@ enum Animal { cerdo, unicornio, tigre, cocodrilo }
 
 const animalColors = {
   Animal.cerdo: Color(0xFFFFB3C7),
-  Animal.unicornio: Color(0xFFCDB4FF),
+  Animal.unicornio: Color(0xFFFFB6D5),
   Animal.tigre: Color(0xFFFFB347),
   Animal.cocodrilo: Color(0xFF7BD389),
 };
@@ -99,8 +99,12 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
           final blink = _c.value > 0.94;
           final clap = widget.emotion == 'happy' ? (DateTime.now().millisecondsSinceEpoch % 700) / 700.0 : -1.0;
           return Stack(alignment: Alignment.center, children: [
-            if (widget.aura && widget.animal != Animal.unicornio)
-              CustomPaint(size: Size.square(sz * 1.4), painter: _AuraPainter(_c.value, color)),
+            if (widget.aura)
+              CustomPaint(
+                  size: Size.square(sz * 1.4),
+                  painter: widget.animal == Animal.unicornio
+                      ? _TrailPainter(_c.value)
+                      : _AuraPainter(_c.value, color)),
             Transform.translate(
               offset: Offset(0, widget.mode == 1 ? -8 * wave.abs() : 0),
               child: Transform.scale(
@@ -178,6 +182,49 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
                   color: color.withAlpha(230))),
         ),
       );
+}
+
+// Estela rosa que sale de la cola del unicornio
+class _TrailPainter extends CustomPainter {
+  final double t;
+  _TrailPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final o = Offset(s.width * 0.72, s.height * 0.68);
+    final e = Offset(s.width * 0.42, -s.height * 0.24);
+    for (int k = 0; k < 3; k++) {
+      final path = Path()..moveTo(o.dx, o.dy + k * 5);
+      for (int i = 1; i <= 24; i++) {
+        final u = i / 24;
+        path.lineTo(o.dx + e.dx * u,
+            o.dy + k * 5 + e.dy * u + sin(u * 7 + t * 2 * pi + k) * 7 * u);
+      }
+      final r = Rect.fromPoints(o, o + e);
+      canvas.drawPath(
+          path,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..strokeWidth = 8.0 - k * 2
+            ..shader = LinearGradient(
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
+              colors: [
+                Color.lerp(const Color(0xFFFF9EC8), const Color(0xFFFFD6E8), k / 2)!.withAlpha(200),
+                const Color(0x00FFB6D5)
+              ],
+            ).createShader(r));
+    }
+    for (int i = 0; i < 6; i++) {
+      final p = (t + i / 6) % 1;
+      canvas.drawCircle(o + Offset(e.dx * p, e.dy * p + sin(p * 9 + i) * 6), 2.6 * (1 - p) + 0.6,
+          Paint()..color = const Color(0xFFFFFFFF).withAlpha((230 * (1 - p)).round()));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TrailPainter o) => o.t != t;
 }
 
 class _AuraPainter extends CustomPainter {

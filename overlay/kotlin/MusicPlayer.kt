@@ -1,7 +1,10 @@
 package com.focuspet.focuspet
 
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.media.MediaPlayer
 import android.os.Handler
 import android.os.Looper
@@ -15,6 +18,10 @@ object MusicPlayer {
     private var cur: MediaPlayer? = null
     private var out: MediaPlayer? = null
     private var am: AudioManager? = null
+    private var req: AudioFocusRequest? = null
+    private val attrs = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
     private var app: Context? = null
     private var vol = 0.6f
     private var fadeT = 0L
@@ -77,11 +84,20 @@ object MusicPlayer {
         val a = app ?: return null
         val id = a.resources.getIdentifier("lofi_$track", "raw", a.packageName)
         if (id == 0) return null
-        val p = MediaPlayer.create(a, id) ?: return null
-        p.setVolume(v, v)
-        p.setWakeMode(a, PowerManager.PARTIAL_WAKE_LOCK)
-        p.start()
-        return p
+        return try {
+            val p = MediaPlayer()
+            p.setAudioAttributes(attrs)
+            val afd = a.resources.openRawResourceFd(id)
+            p.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            afd.close()
+            p.prepare()
+            p.setWakeMode(a, PowerManager.PARTIAL_WAKE_LOCK)
+            p.setVolume(v, v)
+            p.start()
+            p
+        } catch (e: Exception) {
+            null
+        }
     }
 
     // Idempotente: si ya suena, no reinicia (así sigue al entrar/salir del modo concentración)
@@ -91,7 +107,15 @@ object MusicPlayer {
         app = a
         val m = a.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         am = m
-        m.requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        if (Build.VERSION.SDK_INT >= 26) {
+            val r = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(attrs).setOnAudioFocusChangeListener(focus).build()
+            req = r
+            m.requestAudioFocus(r)
+        } else {
+            @Suppress("DEPRECATION")
+            m.requestAudioFocus(focus, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+        }
         queue.clear()
         last = 0
         if (track >= 4) { // clásica 432 Hz: 6 pistas de ~11 min (más de 1 h sin repetir)
@@ -114,7 +138,12 @@ object MusicPlayer {
         h.removeCallbacks(tick)
         cur?.release(); out?.release()
         cur = null; out = null
-        am?.abandonAudioFocus(focus)
+        if (Build.VERSION.SDK_INT >= 26) {
+            req?.let { am?.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            am?.abandonAudioFocus(focus)
+        }
     }
 
     fun setVolume(v: Float) {

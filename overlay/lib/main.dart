@@ -297,8 +297,6 @@ class _HomeState extends State<HomeScreen> {
             child: Column(children: [
               Row(children: [
                 const SizedBox(width: 12),
-                const SkyIcon(),
-                const SizedBox(width: 6),
                 Text('🪙 ${store.coins}',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ink)),
                 const Spacer(),
@@ -802,8 +800,11 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     _t?.cancel();
     _ch.invokeMethod('cancelEnd');
     await _ch.invokeMethod('setBlocking', false);
-    final base = widget.mode == 2 ? widget.minutes / 10 : widget.minutes / 5;
-    final earned = (base * (widget.strict ? 1.0 : 0.5)).round();
+    // ~1 moneda cada 3 min; las sesiones largas rinden algo más (constancia)
+    final m = widget.minutes;
+    final mult = m > 120 ? 1.5 : (m > 60 ? 1.3 : (m > 30 ? 1.15 : 1.0));
+    final base = widget.mode == 2 ? m / 10 : m / 3 * mult;
+    final earned = max(1, (base * (widget.strict ? 1.0 : 0.5)).round());
     store.coins = store.coins + earned;
     store.addMins(widget.mode, widget.minutes);
     const extra = '';
