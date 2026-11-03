@@ -397,21 +397,9 @@ class _AnimalPainter extends CustomPainter {
         });
         break;
       case Animal.cocodrilo:
-        _both(c, () {
-          c.drawArc(Rect.fromCenter(center: const Offset(39, 24.5), width: 14, height: 6), pi * 1.05,
-              pi * 0.9, false, _l(p.line, 1.6));
-        });
-        for (final cr in [const Offset(44, 7), const Offset(50, 4), const Offset(56, 7)]) {
-          final sp = Path()
-            ..moveTo(cr.dx - 3, 14)
-            ..lineTo(cr.dx, cr.dy - 2)
-            ..lineTo(cr.dx + 3, 14)
-            ..close();
-          c.drawPath(sp, _f(p.accent));
-          c.drawPath(sp, _l(p.line, 0.9));
-        }
-        for (final q in [const Offset(46, 18), const Offset(50, 16.5), const Offset(54, 18), const Offset(48, 21.5), const Offset(52, 21.5)]) {
-          c.drawArc(Rect.fromCenter(center: q, width: 3.4, height: 2.4), pi, pi, false, _l(p.line, 0.6));
+        for (final cr in [const Offset(45, 10), const Offset(50, 7.5), const Offset(55, 10)]) {
+          c.drawCircle(cr + const Offset(0, 1), 3.1, _f(p.accent));
+          c.drawCircle(cr + const Offset(0, 1), 3.1, _l(p.line, 0.8));
         }
         break;
     }
@@ -735,7 +723,7 @@ class _AnimalPainter extends CustomPainter {
     if (mode == 1 && clap < 0) {
       _both(c, () {
         c.drawLine(hl.translate(-10, 0), hl.translate(10, 0), _l(const Color(0xFF8A8FA3), 2.4));
-        for (final dx in [-10.0, 10.0]) {
+        for (final dx in [-6.5, 6.5]) {
           c.drawRRect(
               RRect.fromRectAndRadius(
                   Rect.fromCenter(center: hl.translate(dx, 0), width: 5, height: 14),
@@ -784,13 +772,13 @@ class _AnimalPainter extends CustomPainter {
       case Animal.cocodrilo:
         _both(c, () {
           final horn = Path()
-            ..moveTo(33, 19)
-            ..cubicTo(26, 14, 24, 6, 17, 1)
-            ..cubicTo(25, 2, 35, 6, 41, 15)
+            ..moveTo(34, 19)
+            ..cubicTo(30, 15, 29, 10, 25, 7)
+            ..cubicTo(32, 7, 38, 11, 41, 17)
             ..close();
           c.drawPath(horn, _f(const Color(0xFFF5E6B8)));
           c.drawPath(horn, _l(p.line, 1.1));
-          c.drawLine(const Offset(30, 14), const Offset(24, 8), _l(p.accent, 1.2));
+          
         });
         break;
     }
@@ -875,28 +863,10 @@ class _AnimalPainter extends CustomPainter {
         break;
       case Animal.cocodrilo:
         {
-          final r = Rect.fromLTWH(30, 36, 40, 26);
-          final snout = Path()
-            ..moveTo(31, 42)
-            ..cubicTo(31, 34, 69, 34, 69, 42)
-            ..cubicTo(72, 54, 63, 62, 50, 62)
-            ..cubicTo(37, 62, 28, 54, 31, 42)
-            ..close();
-          c.drawPath(snout, _g(r, p.light, const Color(0xFF8EDC96)));
-          c.drawPath(snout, _l(p.line, 1.2));
-          // fosas nasales alargadas, con escamas y pliegue del labio
-          _both(c, () {
-            c.save();
-            c.translate(44, 42.5);
-            c.rotate(-0.5);
-            c.drawOval(Rect.fromCenter(center: Offset.zero, width: 3.2, height: 5.2), _f(p.line));
-            c.restore();
-            for (final q in const [Offset(39, 47), Offset(41.5, 51), Offset(37, 52)]) {
-              c.drawCircle(q, 0.9, _f(Color.lerp(p.base, p.line, 0.35)!));
-            }
-          });
-          c.drawArc(Rect.fromCenter(center: const Offset(50, 40), width: 18, height: 5), 0.3, pi - 0.6,
-              false, _l(Color.lerp(p.base, p.line, 0.4)!, 0.9));
+          final r = Rect.fromCenter(center: const Offset(50, 46), width: 28, height: 18);
+          c.drawOval(r, _g(r, p.light, const Color(0xFF8EDC96)));
+          c.drawOval(r, _l(p.line, 1.1));
+          _both(c, () => c.drawCircle(const Offset(45, 43.2), 1.3, _f(p.line)));
         }
         break;
     }
