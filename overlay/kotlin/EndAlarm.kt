@@ -7,7 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.VibrationEffect
+import android.media.AudioAttributes
+import android.os.PowerManager
 import android.os.Vibrator
+import android.os.VibratorManager
 
 // Alarma exacta al terminar la sesión: vibra y avisa aunque la pantalla esté apagada
 object EndAlarm {
@@ -35,21 +38,55 @@ object EndAlarm {
 
 class EndReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
-        Dnd.disable(context)
-        if (intent?.getBooleanExtra("v", true) == true) {
-            val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            val pattern = longArrayOf(0, 900, 300, 900, 300, 900, 300, 1300, 300, 1800)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                v.vibrate(VibrationEffect.createWaveform(pattern, -1))
-            } else {
-                v.vibrate(pattern, -1)
-            }
-        }
+        val app = context.applicationContext
+        val vib = intent?.getBooleanExtra("v", true) == true
         val mode = intent?.getIntExtra("mode", 0) ?: 0
-        if (mode == 2) {
-            Bedtime.notifyText(context, 20, "☀️ ¡Buenos días!", "Abre focuspet para cobrar tus monedas")
+        val pr = goAsync()
+        val wl = (app.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "focuspet:end")
+        wl.acquire(30_000)
+        Thread {
+            try {
+                Dnd.disable(app)
+                if (mode == 2) {
+                    Bedtime.notifyText(app, 20, "☀️ ¡Buenos días!", "Abre focuspet para cobrar tus monedas")
+                } else {
+                    Bedtime.notifyText(app, 20, "🎉 ¡Sesión terminada!", "Abre focuspet para cobrar tus monedas")
+                }
+                if (vib) {
+                    Thread.sleep(600) // deja que "No molestar" termine de apagarse
+                    vibrateLong(app)
+                    Thread.sleep(1500)
+                }
+            } catch (e: Exception) {
+            } finally {
+                if (wl.isHeld) wl.release()
+                pr.finish()
+            }
+        }.start()
+    }
+
+    // ~15 s a máxima potencia, como alarma (atraviesa "No molestar")
+    private fun vibrateLong(ctx: Context) {
+        val v: Vibrator = if (Build.VERSION.SDK_INT >= 31) {
+            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
         } else {
-            Bedtime.notifyText(context, 20, "🎉 ¡Sesión terminada!", "Abre focuspet para cobrar tus monedas")
+            @Suppress("DEPRECATION")
+            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+        val t = longArrayOf(0, 1500, 400, 1500, 400, 1500, 400, 2000, 400, 2000, 400, 2500)
+        if (Build.VERSION.SDK_INT >= 26) {
+            val amp = IntArray(t.size) { if (it % 2 == 1) 255 else 0 }
+            val fx = if (v.hasAmplitudeControl()) VibrationEffect.createWaveform(t, amp, -1)
+            else VibrationEffect.createWaveform(t, -1)
+            val at = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+            @Suppress("DEPRECATION")
+            v.vibrate(fx, at)
+        } else {
+            @Suppress("DEPRECATION")
+            v.vibrate(t, -1)
         }
     }
 }

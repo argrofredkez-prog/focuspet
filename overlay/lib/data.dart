@@ -10,7 +10,7 @@ const emojiOf = {
   Animal.cerdo: '🐷',
   Animal.unicornio: '🦄',
   Animal.tigre: '🐯',
-  Animal.cocodrilo: '🐊',
+  Animal.cocodrilo: '🐉',
 };
 
 Color inkFor(Animal a, int scene) =>
@@ -39,9 +39,9 @@ const catalog = <Item>[
   Item('f_tigre2', 'Muslo de pollo', '🍗', 25, 'food', hunger: 45, xp: 12, animal: Animal.tigre),
   Item('f_tigre3', 'Costillas', '🍖', 15, 'food', hunger: 30, xp: 8, animal: Animal.tigre),
   Item('f_tigre4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.tigre),
-  Item('f_croc1', 'Pescado', '🐟', 10, 'food', hunger: 20, xp: 5, animal: Animal.cocodrilo),
-  Item('f_croc2', 'Gambas', '🍤', 25, 'food', hunger: 45, xp: 12, animal: Animal.cocodrilo),
-  Item('f_croc3', 'Cangrejo', '🦀', 15, 'food', hunger: 30, xp: 8, animal: Animal.cocodrilo),
+  Item('f_croc1', 'Carne asada', '🍖', 10, 'food', hunger: 20, xp: 5, animal: Animal.cocodrilo),
+  Item('f_croc2', 'Pollo', '🍗', 25, 'food', hunger: 45, xp: 12, animal: Animal.cocodrilo),
+  Item('f_croc3', 'Chile picante', '🌶️', 15, 'food', hunger: 30, xp: 8, animal: Animal.cocodrilo),
   Item('f_croc4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.cocodrilo),
   // Complementos
   Item('a_flower', 'Flor', '🌸', 20, 'acc', slot: 'head'),
