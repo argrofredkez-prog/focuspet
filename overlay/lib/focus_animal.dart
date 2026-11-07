@@ -185,13 +185,6 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
       );
 }
 
-Path _spark(Offset o, double r) => Path()
-  ..moveTo(o.dx, o.dy - r)
-  ..quadraticBezierTo(o.dx, o.dy, o.dx + r, o.dy)
-  ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy + r)
-  ..quadraticBezierTo(o.dx, o.dy, o.dx - r, o.dy)
-  ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy - r);
-
 // Estela rosa que sale de la cola del unicornio
 class _TrailPainter extends CustomPainter {
   final double t;

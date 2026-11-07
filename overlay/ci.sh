@@ -34,6 +34,7 @@ perms = ('<uses-permission android:name="android.permission.POST_NOTIFICATIONS" 
          '    ')
 q = ('<intent>\n            <action android:name="android.intent.action.MAIN" />\n'
      '            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n        ')
+m = m.replace('android:label="focuspet"', 'android:label="FOKUS ONIT!"')
 if 'BlockerService' not in m:
     m = m.replace('<application', perms + '<application', 1)
     m = m.replace('</application>', s + '    </application>')
@@ -41,5 +42,7 @@ if 'BlockerService' not in m:
         m = m.replace('<queries>', '<queries>\n        ' + q, 1)
     else:
         m = m.replace('</manifest>', '    <queries>\n        ' + q + '</queries>\n</manifest>')
+    open(p, 'w').write(m)
+else:
     open(p, 'w').write(m)
 PY

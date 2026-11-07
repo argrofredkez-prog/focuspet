@@ -52,7 +52,7 @@ class EndReceiver : BroadcastReceiver() {
                 notifyAlarm(
                     app,
                     if (mode == 2) "☀️ ¡Buenos días!" else "🎉 ¡Sesión terminada!",
-                    "Abre focuspet para cobrar tus monedas",
+                    "Abre FOKUS ONIT! para cobrar tus monedas",
                     vib
                 )
                 if (vib) {

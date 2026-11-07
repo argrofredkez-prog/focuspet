@@ -94,7 +94,7 @@ class BedtimeReceiver : BroadcastReceiver() {
             }
             2 -> Bedtime.notifyText(context, id, "🏋️ Hora de entrenar", "¡Muévete un poco, tu animal y tú lo merecéis!")
             4 -> Bedtime.notifyText(context, id, "🧠 Hora de repasar", "Mira qué temas te tocan repasar hoy")
-            8 -> Bedtime.notifyText(context, id, "😊 ¿Cómo te sientes hoy?", "Registra tu estado de ánimo en focuspet")
+            8 -> Bedtime.notifyText(context, id, "😊 ¿Cómo te sientes hoy?", "Registra tu estado de ánimo en FOKUS ONIT!")
             else -> Bedtime.notifyText(context, id, "📚 Hora de estudiar", "Abre la app y empieza tu sesión de estudio ✨")
         }
         Bedtime.schedule(context, id, h, m)

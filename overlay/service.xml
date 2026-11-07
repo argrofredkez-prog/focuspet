@@ -1,7 +1,7 @@
         <service
             android:name=".BlockerService"
             android:exported="true"
-            android:label="focuspet"
+            android:label="FOKUS ONIT!"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

@@ -92,6 +92,7 @@ class FocusPetApp extends StatelessWidget {
         valueListenable: darkMode,
         builder: (_, dark, __) => MaterialApp(
           debugShowCheckedModeBanner: false,
+          title: 'FOKUS ONIT!',
           theme: ThemeData(useMaterial3: true),
           darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
@@ -234,7 +235,7 @@ class _HomeState extends State<HomeScreen> {
           builder: (_) => AlertDialog(
                 title: const Text('Activa el bloqueo 🔒'),
                 content: const Text(
-                    'En Accesibilidad busca "focuspet" y actívalo. Solo se usa para saber qué app está abierta.'),
+                    'En Accesibilidad busca "FOKUS ONIT!" y actívalo. Solo se usa para saber qué app está abierta.'),
                 actions: [
                   TextButton(
                       onPressed: () {
@@ -253,7 +254,7 @@ class _HomeState extends State<HomeScreen> {
           builder: (c) => AlertDialog(
                 title: const Text('Bloquear notificaciones 🔕'),
                 content: const Text(
-                    'Para silenciar todo menos las llamadas, permite a focuspet el acceso a "No molestar".'),
+                    'Para silenciar todo menos las llamadas, permite a FOKUS ONIT! el acceso a "No molestar".'),
                 actions: [
                   TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Abrir ajustes')),
                   TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Seguir sin bloquear')),
