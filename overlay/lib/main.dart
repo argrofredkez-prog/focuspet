@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -446,6 +447,55 @@ class _SettingsState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes ⚙️')),
       body: ListView(children: [
+        ListTile(
+          leading: const Text('💾', style: TextStyle(fontSize: 26)),
+          title: const Text('Copia de seguridad'),
+          subtitle: const Text('Guarda o recupera tus monedas, accesorios y fondos'),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            OutlinedButton(
+                onPressed: () async {
+                  final data = jsonEncode({for (final k in store.p.getKeys()) k: store.p.get(k)});
+                  await Clipboard.setData(ClipboardData(text: data));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copiada: pégala en un chat o nota para guardarla')));
+                  }
+                },
+                child: const Text('Copiar')),
+            const SizedBox(width: 6),
+            FilledButton.tonal(
+                onPressed: () async {
+                  final t = (await Clipboard.getData('text/plain'))?.text ?? '';
+                  try {
+                    final mp = jsonDecode(t) as Map<String, dynamic>;
+                    for (final e in mp.entries) {
+                      final v = e.value;
+                      if (v is bool) {
+                        await store.p.setBool(e.key, v);
+                      } else if (v is int) {
+                        await store.p.setInt(e.key, v);
+                      } else if (v is double) {
+                        await store.p.setDouble(e.key, v);
+                      } else if (v is String) {
+                        await store.p.setString(e.key, v);
+                      } else if (v is List) {
+                        await store.p.setStringList(e.key, v.map((x) => '$x').toList());
+                      }
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Recuperado ✅ Cierra y abre la app')));
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('No hay una copia válida en el portapapeles')));
+                    }
+                  }
+                },
+                child: const Text('Recuperar')),
+          ]),
+        ),
         ListTile(
           title: Text('Brillo de la app 🔆 ${(store.bright * 100).round()}%'),
           subtitle: Slider(

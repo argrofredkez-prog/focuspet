@@ -48,13 +48,15 @@ class EndReceiver : BroadcastReceiver() {
         Thread {
             try {
                 Dnd.disable(app)
-                if (mode == 2) {
-                    Bedtime.notifyText(app, 20, "☀️ ¡Buenos días!", "Abre focuspet para cobrar tus monedas")
-                } else {
-                    Bedtime.notifyText(app, 20, "🎉 ¡Sesión terminada!", "Abre focuspet para cobrar tus monedas")
-                }
+                waitDndOff(app)
+                notifyAlarm(
+                    app,
+                    if (mode == 2) "☀️ ¡Buenos días!" else "🎉 ¡Sesión terminada!",
+                    "Abre focuspet para cobrar tus monedas",
+                    vib
+                )
                 if (vib) {
-                    Thread.sleep(600) // deja que "No molestar" termine de apagarse
+                    Thread.sleep(500)
                     vibrateLong(app)
                     Thread.sleep(1500)
                 }
@@ -66,7 +68,40 @@ class EndReceiver : BroadcastReceiver() {
         }.start()
     }
 
-    // ~15 s a máxima potencia, como alarma (atraviesa "No molestar")
+    // espera (máx. 3 s) a que "No molestar" se haya apagado de verdad
+    private fun waitDndOff(ctx: Context) {
+        if (Build.VERSION.SDK_INT < 23) return
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        var i = 0
+        while (i < 15 && nm.currentInterruptionFilter != android.app.NotificationManager.INTERRUPTION_FILTER_ALL) {
+            Thread.sleep(200)
+            i++
+        }
+    }
+
+    // aviso tipo alarma: su canal vibra y se salta "No molestar"
+    private fun notifyAlarm(ctx: Context, title: String, text: String, vib: Boolean) {
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val open = PendingIntent.getActivity(ctx, 11, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val pat = longArrayOf(0, 1500, 400, 1500, 400, 1500)
+        val b: android.app.Notification.Builder
+        if (Build.VERSION.SDK_INT >= 26) {
+            val ch = android.app.NotificationChannel("fin_alarma_v1", "Fin de sesión", android.app.NotificationManager.IMPORTANCE_HIGH)
+            ch.enableVibration(vib)
+            ch.vibrationPattern = pat
+            try { ch.setBypassDnd(true) } catch (e: Exception) { }
+            nm.createNotificationChannel(ch)
+            b = android.app.Notification.Builder(ctx, "fin_alarma_v1")
+        } else {
+            @Suppress("DEPRECATION")
+            b = android.app.Notification.Builder(ctx).setVibrate(pat).setPriority(android.app.Notification.PRIORITY_MAX)
+        }
+        b.setSmallIcon(ctx.applicationInfo.icon).setContentTitle(title).setContentText(text)
+            .setCategory(android.app.Notification.CATEGORY_ALARM).setContentIntent(open).setAutoCancel(true)
+        nm.notify(20, b.build())
+    }
+
+    // ~60 s a máxima potencia, como alarma (atraviesa "No molestar")
     private fun vibrateLong(ctx: Context) {
         val v: Vibrator = if (Build.VERSION.SDK_INT >= 31) {
             (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
@@ -74,7 +109,7 @@ class EndReceiver : BroadcastReceiver() {
             @Suppress("DEPRECATION")
             ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         }
-        val t = longArrayOf(0, 1500, 400, 1500, 400, 1500, 400, 2000, 400, 2000, 400, 2500)
+        val t = LongArray(41) { if (it == 0) 0L else if (it % 2 == 1) 2500L else 500L } // 20 pulsos = 60 s
         if (Build.VERSION.SDK_INT >= 26) {
             val amp = IntArray(t.size) { if (it % 2 == 1) 255 else 0 }
             val fx = if (v.hasAmplitudeControl()) VibrationEffect.createWaveform(t, amp, -1)

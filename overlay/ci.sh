@@ -3,6 +3,8 @@
 set -e
 flutter create --org com.focuspet --project-name focuspet --platforms android app
 cd app
+# firma fija: así la app se actualiza encima sin perder los datos (accesorios, monedas...)
+mkdir -p ~/.android && cp ../overlay/debug.keystore ~/.android/debug.keystore
 flutter pub add shared_preferences
 cp ../overlay/lib/*.dart lib/
 K=android/app/src/main/kotlin/com/focuspet/focuspet

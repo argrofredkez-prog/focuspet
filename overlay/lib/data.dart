@@ -14,7 +14,7 @@ const emojiOf = {
 };
 
 Color inkFor(Animal a, int scene) =>
-    (a == Animal.cocodrilo || scene == 2) ? Colors.white : kInk;
+    (a == Animal.cocodrilo || scene == 2 || scene == 6) ? Colors.white : kInk;
 
 class Item {
   final String id, name, emoji, kind, slot; // kind: food | acc | scene ; slot: head | eyes | neck
@@ -61,14 +61,40 @@ const catalog = <Item>[
   Item('a_cape', 'Capa de superhéroe', '🦸', 90, 'acc', slot: 'back'),
   Item('a_wings', 'Alas de ángel', '👼', 100, 'acc', slot: 'back'),
   Item('a_balloon', 'Globo', '🎈', 35, 'acc', slot: 'hand'),
-  // Fondos
-  Item('s_dawn', 'Amanecer', '🌅', 70, 'scene'),
-  Item('s_sunset', 'Atardecer', '🌇', 60, 'scene'),
-  Item('s_night', 'Noche estrellada', '🌙', 100, 'scene'),
+  // Gorros
+  Item('a_beanie', 'Gorro de lana', '🧶', 35, 'acc', slot: 'head'),
+  Item('a_cap', 'Gorra', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_santa', 'Gorro navideño', '🎅', 45, 'acc', slot: 'head'),
+  Item('a_cowboy', 'Sombrero vaquero', '🤠', 55, 'acc', slot: 'head'),
+  Item('a_sunhat', 'Pamela', '👒', 40, 'acc', slot: 'head'),
+  Item('a_bunny', 'Orejas de conejo', '🐰', 35, 'acc', slot: 'head'),
+  Item('a_graduate', 'Birrete', '🎓', 60, 'acc', slot: 'head'),
+  // Botas y zapatos
+  Item('a_rainboots', 'Botas de lluvia', '🥾', 40, 'acc', slot: 'feet'),
+  Item('a_cowboots', 'Botas vaqueras', '👢', 50, 'acc', slot: 'feet'),
+  Item('a_sneakers', 'Zapatillas', '👟', 35, 'acc', slot: 'feet'),
+  Item('a_snowboots', 'Botas de nieve', '⛄', 45, 'acc', slot: 'feet'),
+  Item('a_shoes', 'Zapatos de gala', '👞', 30, 'acc', slot: 'feet'),
+  // Ropa
+  Item('a_tshirt', 'Camiseta de rayas', '👕', 40, 'acc', slot: 'body'),
+  Item('a_dress', 'Vestido', '👗', 60, 'acc', slot: 'body'),
+  Item('a_sweater', 'Jersey navideño', '🎄', 55, 'acc', slot: 'body'),
+  Item('a_hoodie', 'Sudadera', '🧥', 50, 'acc', slot: 'body'),
+  Item('a_overalls', 'Peto vaquero', '👖', 55, 'acc', slot: 'body'),
+  Item('a_kimono', 'Kimono', '👘', 70, 'acc', slot: 'body'),
+  Item('a_tux', 'Esmoquin', '🤵', 80, 'acc', slot: 'body'),
+  // Fondos kawaii
+  Item('s_candy', 'Mundo de caramelo', '🍭', 60, 'scene'),
+  Item('s_cloud', 'Nubes de algodón', '☁️', 60, 'scene'),
+  Item('s_galaxy', 'Galaxia kawaii', '🪐', 90, 'scene'),
+  Item('s_sea', 'Fondo del mar', '🐠', 70, 'scene'),
+  Item('s_mush', 'Bosque de setas', '🍄', 70, 'scene'),
+  Item('s_bakery', 'Pastelería', '🧁', 80, 'scene'),
+  Item('s_winter', 'Invierno kawaii', '⛄', 70, 'scene'),
 ];
 
 
-const sceneIdx = {'s_sunset': 1, 's_night': 2, 's_dawn': 3};
+const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10};
 const slotNames = {
   'head': 'cabeza',
   'eyes': 'ojos',
@@ -77,6 +103,7 @@ const slotNames = {
   'back': 'espalda',
   'hand': 'mano',
   'body': 'cuerpo',
+  'feet': 'pies',
 };
 const modeNames = ['Estudiar', 'Entrenar', 'Dormir'];
 const modeEmoji = ['📚', '🏋️', '😴'];
@@ -88,12 +115,10 @@ List<Item> allItems() => [...catalog, ...store.customs];
 Item itemById(String id) =>
     allItems().firstWhere((i) => i.id == id, orElse: () => catalog.first);
 
-// Escena efectiva: la elegida en la tienda o, si es automática, según la hora (sol / atardecer / noche)
+// Escena efectiva: los fondos kawaii comprados (4+); si no, el paisaje propio del animal
 int effScene(Animal a) {
   final s = store.scene(a);
-  if (s != 0) return s;
-  final h = DateTime.now().hour;
-  return (h >= 8 && h < 16) ? 0 : ((h >= 16 && h < 20) ? 1 : 2);
+  return s >= 4 ? s : 0;
 }
 
 late Store store;

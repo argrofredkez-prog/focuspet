@@ -1,5 +1,6 @@
 package com.focuspet.focuspet
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -112,5 +113,14 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    // al abrir la app se corta la vibración de fin de sesión
+    override fun onResume() {
+        super.onResume()
+        try {
+            (getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator).cancel()
+        } catch (e: Exception) {
+        }
     }
 }

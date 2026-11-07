@@ -45,6 +45,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
   double stumble = 0, duck = 0, bannerT = 0, dust = 0, scroll = 0, worldW = 400, worldH = 500;
   int level = 0, runBest = 0;
   String bannerMsg = '';
+  int cp = 0; // punto de control: nivel desde el que reaparece (cada 3 niveles)
   static const _fallT = 2.4; // tiempo antes de reiniciar tras chocar
   int best = store.p.getInt('bestm') ?? 0;
 
@@ -72,6 +73,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     stumble = 0;
     duck = 0;
     level = 0;
+    cp = 0;
     jumps = 0;
     glide = 0.7;
     holding = false;
@@ -196,13 +198,13 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
 
   void _crash() {
     runBest = max(runBest, meters.floor());
-    meters = 0; // al caer, la racha y la dificultad vuelven a empezar
-    level = 0;
-    speed = 230;
+    meters = cp * 100.0; // vuelves al último punto de control (niveles 0, 3, 6, 9...)
+    level = cp;
+    speed = min(230.0 + meters * 0.42, 680.0);
     holding = false;
     stumble = _fallT;
     bannerT = _fallT;
-    bannerMsg = '💥 ¡Choque! Vuelves al nivel 0';
+    bannerMsg = cp == 0 ? '💥 ¡Choque! Vuelves al nivel 0' : '💥 ¡Choque! Vuelves al punto de control 🚩 nivel $cp';
     obs.clear();
     spawn = 1.9;
   }
@@ -222,7 +224,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     if (falling) {
       stumble -= dt;
       if (stumble <= 0) {
-        bannerMsg = 'Nivel 0 · ¡adelante! 🏃';
+        bannerMsg = 'Nivel $cp · ¡adelante! 🏃';
         bannerT = 1.4;
       }
     }
@@ -234,9 +236,12 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
       level = meters ~/ 100;
       if (level > before) {
         bannerT = 1.8;
-        bannerMsg = level % 3 == 0
-            ? '¡Nivel $level! · ${biomes[(level ~/ 3) % 5]}'
-            : '¡Nivel $level! ⚡';
+        if (level % 3 == 0) {
+          cp = level;
+          bannerMsg = '🚩 ¡Punto de control! Nivel $level · ${biomes[(level ~/ 3) % 5]}';
+        } else {
+          bannerMsg = '¡Nivel $level! ⚡';
+        }
       }
       speed = min(230.0 + meters * 0.42, 680.0); // acelera de forma continua
       spawn -= dt;

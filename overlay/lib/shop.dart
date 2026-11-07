@@ -96,10 +96,10 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
     final cur = store.scene(a);
     return ListView(children: [
       ListTile(
-        leading: const Text('☀️', style: TextStyle(fontSize: 30)),
-        title: const Text('Automático'),
-        subtitle: const Text('Cambia con la hora: sol, atardecer y noche'),
-        trailing: cur == 0
+        leading: const Text('🏡', style: TextStyle(fontSize: 30)),
+        title: const Text('Predeterminado'),
+        subtitle: const Text('El paisaje de tu animal'),
+        trailing: (cur < 4)
             ? const Text('En uso')
             : FilledButton(
                 onPressed: () {

@@ -61,6 +61,10 @@ class _BgPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size s) {
+    if (scene >= 4) {
+      _kawaii(canvas, s);
+      return;
+    }
     final rect = Offset.zero & s;
     canvas.drawRect(
         rect,
@@ -452,6 +456,291 @@ class _BgPainter extends CustomPainter {
       }
     }
     c.drawCircle(o, r, Paint()..color = core);
+  }
+
+  // ---------- fondos kawaii (tienda) ----------
+  Paint _p(Color c) => Paint()..color = c;
+
+  Paint _st(Color c, double w) => Paint()
+    ..color = c
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = w
+    ..strokeCap = StrokeCap.round;
+
+  void _gradBg(Canvas c, Size s, List<Color> cols) {
+    final r = Offset.zero & s;
+    c.drawRect(
+        r,
+        Paint()
+          ..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: cols)
+              .createShader(r));
+  }
+
+  void _kface(Canvas c, Offset o, double r) {
+    final eye = _p(const Color(0xFF4A3B5C));
+    c.drawCircle(o + Offset(-r * .32, -r * .05), r * .09 + .6, eye);
+    c.drawCircle(o + Offset(r * .32, -r * .05), r * .09 + .6, eye);
+    c.drawArc(Rect.fromCenter(center: o + Offset(0, r * .08), width: r * .26, height: r * .2), 0.2, pi - 0.4, false,
+        _st(const Color(0xFF4A3B5C), max(1.0, r * .06)));
+    final bl = _p(const Color(0x66FF8FB8));
+    c.drawOval(Rect.fromCenter(center: o + Offset(-r * .55, r * .12), width: r * .3, height: r * .17), bl);
+    c.drawOval(Rect.fromCenter(center: o + Offset(r * .55, r * .12), width: r * .3, height: r * .17), bl);
+  }
+
+  void _blob(Canvas c, Offset o, double r, Color col) {
+    final p = _p(col);
+    c.drawCircle(o, r, p);
+    c.drawCircle(o + Offset(-r * .9, r * .25), r * .7, p);
+    c.drawCircle(o + Offset(r * .9, r * .25), r * .7, p);
+    c.drawRRect(
+        RRect.fromRectAndRadius(
+            Rect.fromLTRB(o.dx - r * 1.6, o.dy + r * .2, o.dx + r * 1.6, o.dy + r * .95), Radius.circular(r * .4)),
+        p);
+  }
+
+  void _hill(Canvas c, Size s, Color col, double yf, double amp, double ph) {
+    final p = Path()..moveTo(0, s.height);
+    for (double x = 0; x <= s.width; x += 6) {
+      p.lineTo(x, s.height * yf + amp * sin(x / s.width * 2 * pi * 1.5 + ph));
+    }
+    p
+      ..lineTo(s.width, s.height)
+      ..close();
+    c.drawPath(p, _p(col));
+  }
+
+  Path _heartP(Offset o, double r) => Path()
+    ..moveTo(o.dx, o.dy + r * .9)
+    ..cubicTo(o.dx - r * 1.6, o.dy - r * .2, o.dx - r * .7, o.dy - r * 1.2, o.dx, o.dy - r * .4)
+    ..cubicTo(o.dx + r * .7, o.dy - r * 1.2, o.dx + r * 1.6, o.dy - r * .2, o.dx, o.dy + r * .9);
+
+  Path _sparkP(Offset o, double r) => Path()
+    ..moveTo(o.dx, o.dy - r)
+    ..quadraticBezierTo(o.dx, o.dy, o.dx + r, o.dy)
+    ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy + r)
+    ..quadraticBezierTo(o.dx, o.dy, o.dx - r, o.dy)
+    ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy - r);
+
+  void _sparkles(Canvas c, Size s, Color col, int n) {
+    for (int i = 0; i < n; i++) {
+      final tw = 0.5 + 0.5 * sin((t + _r(i, 7)) * 2 * pi);
+      c.drawPath(_sparkP(Offset(s.width * _r(i, 5), s.height * .8 * _r(i, 6)), 3 + 4 * tw),
+          _p(col.withAlpha((120 + 135 * tw).round())));
+    }
+  }
+
+  void _kawaii(Canvas c, Size s) {
+    final w = s.width, h = s.height;
+    switch (scene) {
+      case 4: // mundo de caramelo
+        _gradBg(c, s, const [Color(0xFFFFD6EC), Color(0xFFD6F0FF), Color(0xFFD9FFEB)]);
+        for (int i = 0; i < 4; i++) {
+          final x = ((_r(i, 1) + t * (1 + i % 2)) % 1.0) * (w + 140) - 70;
+          final y = h * (0.08 + 0.26 * _r(i, 3));
+          final rr = 20 + 10 * _r(i, 4);
+          _blob(c, Offset(x, y), rr, i.isEven ? const Color(0xFFFFB8DC) : const Color(0xFFBDE6FF));
+          _kface(c, Offset(x, y + rr * .25), rr * .8);
+        }
+        const lc = [Color(0xFFFF7EB6), Color(0xFFFFD166), Color(0xFF7ED6FF), Color(0xFFB59CFF), Color(0xFF7DDFA8)];
+        for (int i = 0; i < 5; i++) {
+          final x = w * (0.1 + 0.2 * i) + 6 * sin(t * 2 * pi + i);
+          final y = h * 0.52 + 6 * sin((t + i * .2) * 2 * pi);
+          c.drawLine(Offset(x, y), Offset(x, h * 0.9), _st(Colors.white, 4));
+          c.drawCircle(Offset(x, y), 17, _p(lc[i]));
+          c.drawCircle(Offset(x, y), 11, _p(const Color(0x99FFFFFF)));
+          c.drawCircle(Offset(x, y), 6, _p(lc[i]));
+        }
+        for (int i = 0; i < 24; i++) {
+          final y = ((_r(i, 8) + t) % 1.0) * h;
+          c.drawCircle(Offset(w * _r(i, 9) + 5 * sin(t * 2 * pi + i), y), 2.2, _p(lc[i % 5].withAlpha(190)));
+        }
+        _hill(c, s, const Color(0xFFBFF3DC), 0.86, 7, 0);
+        _hill(c, s, const Color(0xFFFFC4E1), 0.92, 6, 2);
+        break;
+      case 5: // nubes de algodón
+        _gradBg(c, s, const [Color(0xFF9BD8FF), Color(0xFFDDF3FF), Color(0xFFFFEFF8)]);
+        const rb = [Color(0xFFFF8FA3), Color(0xFFFFC27A), Color(0xFFFFF29C), Color(0xFFA8E6A1), Color(0xFF9AD1FF), Color(0xFFC3A6FF)];
+        for (int i = 0; i < rb.length; i++) {
+          c.drawArc(Rect.fromCenter(center: Offset(w * .5, h * .8), width: w * .95 - i * 14, height: h * 1.0 - i * 14),
+              pi, pi, false, _st(rb[i].withAlpha(210), 8));
+        }
+        for (int i = 0; i < 5; i++) {
+          final x = ((_r(i, 1) + t * (1 + i % 2)) % 1.0) * (w + 160) - 80;
+          final y = h * (0.1 + 0.55 * _r(i, 3));
+          final rr = 22 + 12 * _r(i, 4);
+          _blob(c, Offset(x, y), rr, Colors.white);
+          _kface(c, Offset(x, y + rr * .25), rr * .8);
+        }
+        for (int i = 0; i < 8; i++) {
+          final y = h - ((t + _r(i, 1)) % 1.0) * h * 1.1;
+          c.drawPath(_heartP(Offset(w * _r(i, 2) + 8 * sin(t * 2 * pi + i), y), 5 + 3 * _r(i, 3)),
+              _p(const Color(0xFFFF8FB8).withAlpha(190)));
+        }
+        _sparkles(c, s, Colors.white, 8);
+        _hill(c, s, const Color(0xFFFFFFFF), 0.93, 5, 1);
+        break;
+      case 6: // galaxia kawaii
+        _gradBg(c, s, const [Color(0xFF1B1048), Color(0xFF3F2A9E), Color(0xFF7A4FD0)]);
+        for (int i = 0; i < 40; i++) {
+          final tw = 0.5 + 0.5 * sin((t + _r(i, 1)) * 2 * pi);
+          c.drawCircle(Offset(w * _r(i, 2), h * _r(i, 3)), 0.8 + 1.4 * _r(i, 4),
+              _p(Colors.white.withAlpha((90 + 165 * tw).round())));
+        }
+        final pl = Offset(w * .78, h * .27);
+        c.drawOval(Rect.fromCenter(center: pl, width: 112, height: 26), _st(const Color(0xFFFFE27A), 5));
+        c.drawCircle(pl, 31, _p(const Color(0xFFFF9ACB)));
+        c.drawCircle(pl.translate(-10, -12), 6, _p(const Color(0x44FFFFFF)));
+        c.drawArc(Rect.fromCenter(center: pl, width: 112, height: 26), 0, pi, false, _st(const Color(0xFFFFE27A), 5));
+        _kface(c, pl.translate(0, 4), 30);
+        final mn = Offset(w * .2, h * .3 + 5 * sin(t * 2 * pi));
+        c.drawCircle(mn, 23, _p(const Color(0xFFFFF3B0)));
+        c.drawCircle(mn.translate(8, 8), 4, _p(const Color(0x33C9A93A)));
+        _kface(c, mn.translate(0, 3), 22);
+        c.drawCircle(Offset(w * .55, h * .13), 12, _p(const Color(0xFF7ED6FF)));
+        c.drawCircle(Offset(w * .55 - 3, h * .13 - 2), 3, _p(const Color(0x66FFFFFF)));
+        final u = (t * 2) % 1.0;
+        if (u < 0.45) {
+          final o = Offset(w * (0.9 - 0.8 * u / 0.45), h * (0.08 + 0.35 * u / 0.45));
+          c.drawLine(o, o + const Offset(34, -14), _st(Colors.white.withAlpha(200), 2.2));
+          c.drawPath(_sparkP(o, 5), _p(Colors.white));
+        }
+        _sparkles(c, s, const Color(0xFFFFE27A), 8);
+        _hill(c, s, const Color(0xFF2B1B6B), 0.9, 6, 0.5);
+        break;
+      case 7: // fondo del mar
+        _gradBg(c, s, const [Color(0xFF8FE9F7), Color(0xFF3FA0E6), Color(0xFF1B58B0)]);
+        for (int i = 0; i < 3; i++) {
+          c.drawPath(
+              Path()
+                ..moveTo(w * (0.15 + 0.3 * i), 0)
+                ..lineTo(w * (0.25 + 0.3 * i), 0)
+                ..lineTo(w * (0.4 + 0.3 * i), h * .8)
+                ..lineTo(w * (0.1 + 0.3 * i), h * .8)
+                ..close(),
+              _p(const Color(0x14FFFFFF)));
+        }
+        for (int i = 0; i < 16; i++) {
+          final y = h - ((t + _r(i, 1)) % 1.0) * h * 1.05;
+          c.drawCircle(Offset(w * _r(i, 2) + 6 * sin(t * 2 * pi * 2 + i), y), 2 + 4 * _r(i, 3), _st(const Color(0xAAFFFFFF), 1.4));
+        }
+        const fc = [Color(0xFFFFA24C), Color(0xFFFF7EB6), Color(0xFFFFE066)];
+        for (int i = 0; i < 3; i++) {
+          final x = (((t * (1 + i % 2)) + _r(i, 1)) % 1.0) * (w + 90) - 45;
+          final y = h * (0.2 + 0.18 * i) + 6 * sin((t + i * .3) * 2 * pi);
+          final o = Offset(x, y);
+          c.drawPath(Path()..moveTo(o.dx - 14, o.dy)..lineTo(o.dx - 28, o.dy - 9)..lineTo(o.dx - 28, o.dy + 9)..close(), _p(fc[i]));
+          c.drawOval(Rect.fromCenter(center: o, width: 36, height: 26), _p(fc[i]));
+          c.drawCircle(o.translate(8, -3), 3.4, _p(Colors.white));
+          c.drawCircle(o.translate(9, -3), 1.8, _p(const Color(0xFF4A3B5C)));
+          c.drawArc(Rect.fromCenter(center: o.translate(10, 4), width: 8, height: 5), 0.2, pi - 0.4, false, _st(const Color(0xFF4A3B5C), 1.2));
+        }
+        final jf = Offset(w * .78, h * .5 + 10 * sin(t * 2 * pi));
+        for (int k = -2; k <= 2; k++) {
+          c.drawPath(
+              Path()
+                ..moveTo(jf.dx + k * 6, jf.dy + 10)
+                ..quadraticBezierTo(jf.dx + k * 6 + 5 * sin(t * 4 * pi + k), jf.dy + 24, jf.dx + k * 6, jf.dy + 36),
+              _st(const Color(0xFFFFB6D5), 2.4));
+        }
+        c.drawArc(Rect.fromCenter(center: jf, width: 46, height: 40), pi, pi, true, _p(const Color(0xFFFFB6D5)));
+        _kface(c, jf.translate(0, -2), 26);
+        for (int i = 0; i < 5; i++) {
+          final x = w * (0.08 + 0.2 * i);
+          final p = Path()..moveTo(x, h);
+          for (int k = 1; k <= 6; k++) {
+            p.lineTo(x + 6 * sin(t * 2 * pi + i + k), h - k * 12);
+          }
+          c.drawPath(p, _st(const Color(0xFF4FD08E), 5));
+        }
+        _hill(c, s, const Color(0xFFF6E1A8), 0.94, 4, 0);
+        break;
+      case 8: // bosque de setas
+        _gradBg(c, s, const [Color(0xFFE3F8D0), Color(0xFFB4EAA4), Color(0xFF8ED38A)]);
+        _hill(c, s, const Color(0xFFA6E39C), 0.72, 10, 0);
+        const cap = [Color(0xFFFF6B8B), Color(0xFFFFB04C), Color(0xFF8E7BFF)];
+        for (int i = 0; i < 3; i++) {
+          final x = w * (0.2 + 0.3 * i);
+          final y = h * (0.82 + 0.03 * (i % 2));
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x - 10, y - 30, 20, 32), const Radius.circular(8)), _p(const Color(0xFFFFF4E0)));
+          c.drawArc(Rect.fromCenter(center: Offset(x, y - 28), width: 62, height: 50), pi, pi, true, _p(cap[i]));
+          for (final d in const [Offset(-16, -40), Offset(4, -48), Offset(18, -38)]) {
+            c.drawCircle(Offset(x + d.dx, y + d.dy), 4.5, _p(Colors.white));
+          }
+          _kface(c, Offset(x, y - 14), 11);
+        }
+        for (int i = 0; i < 14; i++) {
+          final a = (t + _r(i, 2)) * 2 * pi;
+          final o = Offset(w * _r(i, 1) + 12 * sin(a), h * (0.2 + 0.5 * _r(i, 3)) + 8 * cos(a));
+          final g = 0.5 + 0.5 * sin(a * 2);
+          c.drawCircle(o, 9, _p(const Color(0xFFFFF29C).withAlpha((40 * g).round() + 20)));
+          c.drawCircle(o, 2.4, _p(const Color(0xFFFFE066)));
+        }
+        for (int i = 0; i < 6; i++) {
+          final o = Offset(w * (0.08 + 0.17 * i), h * .93);
+          for (int k = 0; k < 5; k++) {
+            c.drawCircle(o + Offset(4 * cos(k * 1.2566), 4 * sin(k * 1.2566)), 2.6, _p(const Color(0xFFFFB6D5)));
+          }
+          c.drawCircle(o, 2, _p(const Color(0xFFFFE066)));
+        }
+        break;
+      case 9: // pastelería
+        _gradBg(c, s, const [Color(0xFFFFF1DC), Color(0xFFFFD3E2)]);
+        const fl = [Color(0xFFFF8FB8), Color(0xFFFFD166), Color(0xFF7ED6FF), Color(0xFFB59CFF), Color(0xFF7DDFA8)];
+        c.drawPath(Path()..moveTo(0, 8)..quadraticBezierTo(w / 2, 34, w, 8), _st(const Color(0xFFB07A3C), 1.6));
+        for (int i = 0; i < 8; i++) {
+          final x = w * (0.06 + 0.125 * i);
+          final y = 8 + 26 * (1 - pow(2 * (x / w) - 1, 2).toDouble());
+          c.drawPath(Path()..moveTo(x - 8, y)..lineTo(x + 8, y)..lineTo(x, y + 16)..close(), _p(fl[i % 5]));
+        }
+        for (int i = 0; i < 3; i++) {
+          final o = Offset(w * (0.2 + 0.3 * i), h * (0.34 + 0.12 * (i % 2)) + 6 * sin((t + i * .3) * 2 * pi));
+          c.drawCircle(o, 24, _p(const Color(0xFFD9A066)));
+          c.drawCircle(o, 21, _p(fl[(i * 2) % 5]));
+          for (int k = 0; k < 8; k++) {
+            c.drawLine(o + Offset(13 * cos(k * 0.785), 13 * sin(k * 0.785)), o + Offset(17 * cos(k * 0.785 + .3), 17 * sin(k * 0.785 + .3)), _st(Colors.white, 2));
+          }
+          c.drawCircle(o, 6, _p(const Color(0xFFFFF1DC)));
+          _kface(c, o.translate(0, 26), 12);
+        }
+        for (int i = 0; i < 2; i++) {
+          final o = Offset(w * (0.35 + 0.35 * i), h * (0.66 + 0.04 * i));
+          c.drawPath(Path()..moveTo(o.dx - 14, o.dy)..lineTo(o.dx + 14, o.dy)..lineTo(o.dx + 10, o.dy + 20)..lineTo(o.dx - 10, o.dy + 20)..close(), _p(fl[(i + 2) % 5]));
+          _blob(c, o.translate(0, -8), 12, const Color(0xFFFFFFFF));
+          c.drawCircle(o.translate(0, -26), 4, _p(const Color(0xFFE8445A)));
+          _kface(c, o.translate(0, -6), 14);
+        }
+        for (int i = 0; i < 24; i++) {
+          final y = ((_r(i, 8) + t) % 1.0) * h;
+          c.drawLine(Offset(w * _r(i, 9), y), Offset(w * _r(i, 9) + 5, y + 3), _st(fl[i % 5], 3));
+        }
+        _hill(c, s, const Color(0xFFFFE4C2), 0.93, 5, 0);
+        break;
+      default: // 10 invierno kawaii
+        _gradBg(c, s, const [Color(0xFFCDE8FF), Color(0xFFEAF5FF), Color(0xFFF8FCFF)]);
+        for (int i = 0; i < 3; i++) {
+          final x = w * (0.18 + 0.32 * i);
+          final y = h * 0.78;
+          c.drawPath(Path()..moveTo(x, y - 62)..lineTo(x - 24, y)..lineTo(x + 24, y)..close(), _p(const Color(0xFF5DBB8A)));
+          c.drawPath(Path()..moveTo(x, y - 62)..lineTo(x - 11, y - 38)..lineTo(x + 11, y - 38)..close(), _p(Colors.white));
+          c.drawRect(Rect.fromLTWH(x - 3, y, 6, 8), _p(const Color(0xFF8B5A3C)));
+        }
+        final sm = Offset(w * .68, h * .84);
+        c.drawCircle(sm, 24, _p(Colors.white));
+        c.drawCircle(sm.translate(0, -30), 17, _p(Colors.white));
+        c.drawPath(Path()..moveTo(sm.dx + 2, sm.dy - 30)..lineTo(sm.dx + 16, sm.dy - 27)..lineTo(sm.dx + 2, sm.dy - 24)..close(), _p(const Color(0xFFFF8A3D)));
+        _kface(c, sm.translate(-2, -32), 17);
+        c.drawLine(sm.translate(-22, -8), sm.translate(-38, -18), _st(const Color(0xFF8B5A3C), 2.4));
+        c.drawLine(sm.translate(22, -8), sm.translate(38, -18), _st(const Color(0xFF8B5A3C), 2.4));
+        c.drawRect(Rect.fromLTWH(sm.dx - 19, sm.dy - 15, 38, 5), _p(const Color(0xFFE8445A)));
+        for (int i = 0; i < 40; i++) {
+          final y = ((_r(i, 8) + t * (1 + i % 2)) % 1.0) * h;
+          final x = (w * _r(i, 9) + 10 * sin(t * 2 * pi + i)) % w;
+          c.drawCircle(Offset(x, y), 1.6 + 1.8 * _r(i, 4), _p(Colors.white));
+        }
+        _hill(c, s, const Color(0xFFFFFFFF), 0.88, 8, 0);
+        _hill(c, s, const Color(0xFFE4F1FF), 0.95, 5, 2);
+        break;
+    }
   }
 
   // ---------- Atardecer / noche ----------

@@ -18,7 +18,7 @@ class _Pal {
 
 const _pals = {
   Animal.cerdo: _Pal(Color(0xFFFFB3C7), Color(0xFFFFDCE6), Color(0xFFFFE6EE), Color(0xFFC2557A), Color(0xFFFF8FAB)),
-  Animal.unicornio: _Pal(Color(0xFFF7F4F6), Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFFB5A9AE), Color(0xFFFFB6D5)),
+  Animal.unicornio: _Pal(Color(0xFFFFF5FA), Color(0xFFFFFFFF), Color(0xFFFFE9F3), Color(0xFFD59BBC), Color(0xFFFFB6D5)),
   Animal.tigre: _Pal(Color(0xFFFFA94D), Color(0xFFFFD08A), Color(0xFFFFF3D6), Color(0xFF9A5418), Color(0xFFFF8FAB)),
   Animal.cocodrilo: _Pal(Color(0xFF6CCB7A), Color(0xFFA6E8A8), Color(0xFFF5E6B8), Color(0xFF2F7D4F), Color(0xFFFF9F43)),
 };
@@ -184,6 +184,13 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
         ),
       );
 }
+
+Path _spark(Offset o, double r) => Path()
+  ..moveTo(o.dx, o.dy - r)
+  ..quadraticBezierTo(o.dx, o.dy, o.dx + r, o.dy)
+  ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy + r)
+  ..quadraticBezierTo(o.dx, o.dy, o.dx - r, o.dy)
+  ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy - r);
 
 // Estela rosa que sale de la cola del unicornio
 class _TrailPainter extends CustomPainter {
@@ -374,14 +381,13 @@ class _AnimalPainter extends CustomPainter {
         }
         break;
       case Animal.unicornio:
-        const tuft = [Color(0xFFFF8FA3), Color(0xFFFFC27A), Color(0xFFA8E6A1), Color(0xFF9AD1FF)];
-        for (int i = 0; i < tuft.length; i++) {
-          c.drawPath(
-              Path()
-                ..moveTo(52, 11)
-                ..quadraticBezierTo(44.0 - i, 7, 40.0 - i * 1.5, 17.0 + i),
-              _l(tuft[i], 2.4));
-        }
+        _both(c, () {
+          for (final q in const [[33.5, 27.5, 30.5, 25.5], [32.5, 30.5, 29.0, 29.5]]) {
+            c.drawLine(Offset(q[0], q[1]), Offset(q[2], q[3]), _l(p.line, 1.1));
+          }
+          c.drawOval(Rect.fromCenter(center: const Offset(30.5, 41.5), width: 8.5, height: 5), _f(const Color(0x66FF8FB8)));
+          c.drawPath(_spark(const Offset(27, 46.5), 2.4), _f(const Color(0xFFFFE27A)));
+        });
         break;
       case Animal.tigre:
         c.drawLine(const Offset(50, 44), const Offset(50, 46.5), _l(p.line, 0.8));
@@ -467,7 +473,9 @@ class _AnimalPainter extends CustomPainter {
     if (a == Animal.unicornio) _mane(c);
     _back(c);
     _feet(c);
+    _boots(c);
     _body(c);
+    _clothes(c);
     if (mode == 2) _pillow(c);
     if (mode == 0 && clap < 0) {
       c.save();
@@ -508,7 +516,8 @@ class _AnimalPainter extends CustomPainter {
               Path()
                 ..moveTo(66, 80)
                 ..cubicTo(84.0 + i * 1.5, 84, 92, 66.0 - i * 1.5, 84.0 + i, 52.0 - i * 2),
-              _l(cols[i], 3.2));
+              _l(cols[i], 4.0));
+          c.drawCircle(Offset(84.0 + i, 52.0 - i * 2), 2.4, _f(cols[i]));
         }
         break;
       case Animal.tigre:
@@ -605,7 +614,8 @@ class _AnimalPainter extends CustomPainter {
             Path()
               ..moveTo(48, 12.0 + i)
               ..cubicTo(26.0 - i, 4, 14.0 - i * 1.5, 30.0 + i * 2, 26.0 + i * 2, 54.0 + i * 3),
-            _l(cols[i], 4.5));
+            _l(cols[i], 5.4));
+        c.drawCircle(Offset(26.0 + i * 2, 54.0 + i * 3), 3.0, _f(cols[i]));
       }
     });
   }
@@ -791,18 +801,21 @@ class _AnimalPainter extends CustomPainter {
     c.drawOval(r, _l(p.line, 1.3));
     if (a == Animal.unicornio) {
       final h = Path()
-        ..moveTo(45, 13)
-        ..lineTo(50, -2)
-        ..lineTo(55, 13)
+        ..moveTo(44.5, 14)
+        ..cubicTo(45, 7, 48, 1, 50, -8)
+        ..cubicTo(52, 1, 55, 7, 55.5, 14)
         ..close();
-      c.drawPath(h, _g(h.getBounds(), const Color(0xFFFFF1A8), const Color(0xFFFFC94D)));
+      c.drawPath(h, _g(h.getBounds(), const Color(0xFFFFF6B8), const Color(0xFFFFC94D)));
       c.drawPath(h, _l(const Color(0xFFD99A1E), 1));
-      c.drawLine(const Offset(46.5, 10), const Offset(53, 8), _l(const Color(0xFFD99A1E), 0.8));
-      c.drawLine(const Offset(47.5, 6), const Offset(52.5, 4), _l(const Color(0xFFD99A1E), 0.8));
-      // flequillo rosa
+      for (final y in [10.0, 5.5, 1.0]) {
+        c.drawLine(Offset(46.8 + (10 - y) * 0.12, y + 1.6), Offset(53.2 - (10 - y) * 0.12, y - 1.2),
+            _l(const Color(0xFFD99A1E), 0.8));
+      }
+      c.drawPath(_spark(const Offset(50, -10.5), 2.4), _f(const Color(0xFFFFFFFF)));
+      const fr = [Color(0xFFFF8FB8), Color(0xFFFFD27A), Color(0xFF9AD1FF)];
       for (int i = 0; i < 3; i++) {
-        c.drawArc(Rect.fromCenter(center: Offset(43.0 + i * 7, 15), width: 8, height: 7), pi, pi, false,
-            _l(const [Color(0xFFFF8FB8), Color(0xFFFFB6D5), Color(0xFFFF8FB8)][i], 2.6));
+        c.drawArc(Rect.fromCenter(center: Offset(42.0 + i * 8, 15.5), width: 9, height: 8), pi, pi, false,
+            _l(fr[i], 3));
       }
     }
     if (a == Animal.tigre) {
@@ -1007,6 +1020,161 @@ class _AnimalPainter extends CustomPainter {
     }
   }
 
+  // ---------------- botas y zapatos ----------------
+  void _boot(Canvas c, Color col, Color edge, double top) {
+    _both(c, () {
+      final foot = Rect.fromCenter(center: const Offset(38, 90), width: 23, height: 14);
+      final shaft = RRect.fromRectAndRadius(Rect.fromLTRB(31, top, 45, 91), const Radius.circular(3.5));
+      c.drawOval(foot, _l(edge, 2));
+      c.drawRRect(shaft, _l(edge, 2));
+      c.drawOval(foot, _f(col));
+      c.drawRRect(shaft, _f(col));
+    });
+  }
+
+  void _boots(Canvas c) {
+    for (final id in acc) {
+      switch (id) {
+        case 'a_rainboots':
+          _boot(c, const Color(0xFFFFD43B), const Color(0xFFC99A00), 79);
+          _both(c, () {
+            c.drawLine(const Offset(33, 82), const Offset(43, 82), _l(const Color(0xAAFFFFFF), 1.6));
+            c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(27, 94, 23, 3), const Radius.circular(1.5)),
+                _f(const Color(0xFF3A3A4E)));
+          });
+          break;
+        case 'a_cowboots':
+          _boot(c, const Color(0xFFA9622B), const Color(0xFF6B3F1D), 78);
+          _both(c, () {
+            c.drawRect(const Rect.fromLTWH(31, 78, 14, 3.5), _f(const Color(0xFF6B3F1D)));
+            c.drawPath(_spark(const Offset(38, 86), 2.6), _f(const Color(0xFFFFD43B)));
+            c.drawRect(const Rect.fromLTWH(30, 95, 8, 3), _f(const Color(0xFF3A2A1E)));
+          });
+          break;
+        case 'a_sneakers':
+          _boot(c, Colors.white, const Color(0xFFB7B7C9), 86);
+          _both(c, () {
+            c.drawArc(Rect.fromCenter(center: const Offset(40, 91), width: 12, height: 8), pi, pi, false,
+                _l(const Color(0xFFE8445A), 2));
+            for (final y in [86.5, 88.5]) {
+              c.drawLine(Offset(34, y), Offset(40, y), _l(const Color(0xFFB7B7C9), 0.9));
+            }
+            c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(27, 94.5, 23, 3), const Radius.circular(1.5)),
+                _f(const Color(0xFFE8445A)));
+          });
+          break;
+        case 'a_snowboots':
+          _boot(c, const Color(0xFF7FB7E8), const Color(0xFF3F7FB8), 80);
+          _both(c, () {
+            c.drawOval(Rect.fromCenter(center: const Offset(38, 81), width: 18, height: 6), _f(Colors.white));
+            c.drawCircle(const Offset(35, 87), 1.2, _f(Colors.white));
+            c.drawCircle(const Offset(41, 86), 1.2, _f(Colors.white));
+          });
+          break;
+        case 'a_shoes':
+          _boot(c, const Color(0xFF1F1B2E), const Color(0xFF0F0C18), 88);
+          _both(c, () {
+            c.drawArc(Rect.fromCenter(center: const Offset(35, 89), width: 9, height: 6), pi * 1.1, pi * 0.7, false,
+                _l(const Color(0xAAFFFFFF), 1));
+            c.drawCircle(const Offset(41, 87.5), 1.7, _f(const Color(0xFFE8445A)));
+          });
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  // ---------------- ropa ----------------
+  void _clothes(Canvas c) {
+    const ids = ['a_tshirt', 'a_dress', 'a_sweater', 'a_hoodie', 'a_overalls', 'a_kimono', 'a_tux'];
+    final body = Rect.fromCenter(center: const Offset(50, 67), width: 42, height: 42);
+    for (final id in acc) {
+      if (!ids.contains(id)) continue;
+      c.save();
+      c.clipPath(Path()..addOval(body));
+      switch (id) {
+        case 'a_tshirt':
+          c.drawRect(body, _f(Colors.white));
+          for (double y = 50; y < 90; y += 7) {
+            c.drawRect(Rect.fromLTRB(28, y, 72, y + 3.4), _f(const Color(0xFF3F9BE0)));
+          }
+          break;
+        case 'a_dress':
+          c.drawRect(const Rect.fromLTRB(28, 56, 72, 90), _f(const Color(0xFFFF8FB8)));
+          c.drawRect(const Rect.fromLTRB(28, 65, 72, 69), _f(const Color(0xFFE8587F)));
+          for (final x in [36.0, 44.0, 52.0, 60.0, 68.0]) {
+            for (final y in [74.0, 82.0]) {
+              c.drawCircle(Offset(x + (y == 82 ? 4 : 0), y), 1.5, _f(Colors.white));
+            }
+          }
+          c.drawPath(Path()..moveTo(50, 67)..lineTo(43, 62.5)..lineTo(43, 71.5)..close(), _f(const Color(0xFFE8587F)));
+          c.drawPath(Path()..moveTo(50, 67)..lineTo(57, 62.5)..lineTo(57, 71.5)..close(), _f(const Color(0xFFE8587F)));
+          break;
+        case 'a_sweater':
+          c.drawRect(const Rect.fromLTRB(28, 52, 72, 90), _f(const Color(0xFF4FA765)));
+          c.drawRect(const Rect.fromLTRB(28, 83, 72, 90), _f(const Color(0xFFE8445A)));
+          final zz = Path()..moveTo(28, 72);
+          for (double x = 28; x < 72; x += 6) {
+            zz.lineTo(x + 3, 66);
+            zz.lineTo(x + 6, 72);
+          }
+          zz..lineTo(72, 74)..lineTo(28, 74)..close();
+          c.drawPath(zz, _f(Colors.white));
+          for (final x in [34.0, 46.0, 58.0]) {
+            c.drawCircle(Offset(x, 79), 1.3, _f(Colors.white));
+          }
+          break;
+        case 'a_hoodie':
+          c.drawRect(const Rect.fromLTRB(28, 54, 72, 90), _f(const Color(0xFF8E5BD9)));
+          c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(37, 73, 26, 10), const Radius.circular(3)),
+              _f(const Color(0xFF6F42B8)));
+          c.drawArc(Rect.fromCenter(center: const Offset(50, 53), width: 30, height: 12), 0, pi, false,
+              _l(const Color(0xFF6F42B8), 4));
+          for (final x in [46.0, 54.0]) {
+            c.drawLine(Offset(x, 57), Offset(x, 67), _l(Colors.white, 1.2));
+            c.drawCircle(Offset(x, 67.5), 1.1, _f(Colors.white));
+          }
+          break;
+        case 'a_overalls':
+          c.drawRect(body, _f(const Color(0xFFFFF4E0)));
+          c.drawRect(const Rect.fromLTRB(28, 66, 72, 90), _f(const Color(0xFF3F7FD0)));
+          c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(40, 58, 20, 12), const Radius.circular(2)),
+              _f(const Color(0xFF3F7FD0)));
+          for (final x in [42.0, 58.0]) {
+            c.drawLine(Offset(x, 50), Offset(x, 60), _l(const Color(0xFF3F7FD0), 3));
+            c.drawCircle(Offset(x, 61), 1.6, _f(const Color(0xFFFFD43B)));
+          }
+          c.drawRect(const Rect.fromLTWH(45, 63, 10, 5), _l(const Color(0xFF6FA2EA), 0.8));
+          break;
+        case 'a_kimono':
+          c.drawRect(const Rect.fromLTRB(28, 52, 72, 90), _f(const Color(0xFFE8445A)));
+          c.drawLine(const Offset(42, 52), const Offset(50, 70), _l(const Color(0xFFFFF4E0), 3));
+          c.drawLine(const Offset(58, 52), const Offset(50, 70), _l(const Color(0xFFFFF4E0), 3));
+          c.drawRect(const Rect.fromLTRB(28, 68, 72, 76), _f(const Color(0xFFFFD43B)));
+          c.drawCircle(const Offset(50, 72), 3.2, _f(const Color(0xFFE8A800)));
+          for (final o in const [Offset(36, 83), Offset(46, 86), Offset(60, 82), Offset(67, 86), Offset(35, 60)]) {
+            c.drawCircle(o, 2, _f(const Color(0xFFFFB6D5)));
+          }
+          break;
+        case 'a_tux':
+          c.drawRect(const Rect.fromLTRB(28, 52, 72, 90), _f(const Color(0xFF1F1B2E)));
+          c.drawPath(Path()..moveTo(43, 52)..lineTo(57, 52)..lineTo(50, 76)..close(), _f(Colors.white));
+          c.drawLine(const Offset(43, 52), const Offset(47.5, 70), _l(const Color(0xFF3A3A4E), 1.2));
+          c.drawLine(const Offset(57, 52), const Offset(52.5, 70), _l(const Color(0xFF3A3A4E), 1.2));
+          for (final y in [64.0, 69.0]) {
+            c.drawCircle(Offset(50, y), 1, _f(const Color(0xFF1F1B2E)));
+          }
+          c.drawPath(Path()..moveTo(50, 57)..lineTo(43.5, 53.5)..lineTo(43.5, 60.5)..close(), _f(const Color(0xFFE8445A)));
+          c.drawPath(Path()..moveTo(50, 57)..lineTo(56.5, 53.5)..lineTo(56.5, 60.5)..close(), _f(const Color(0xFFE8445A)));
+          c.drawCircle(const Offset(50, 57), 1.8, _f(const Color(0xFFB82E44)));
+          break;
+      }
+      c.restore();
+      c.drawOval(body, _l(p.line, 1.2));
+    }
+  }
+
   // ---------------- complementos de la tienda ----------------
   void _accessories(Canvas c) {
     for (final id in acc) {
@@ -1163,6 +1331,104 @@ class _AnimalPainter extends CustomPainter {
               ..close();
             c.drawPath(ms, _f(const Color(0xFF4A2E1F)));
           });
+          break;
+        case 'a_beanie':
+          {
+            final dm = Path()
+              ..moveTo(33, 17)
+              ..cubicTo(33, -6, 67, -6, 67, 17)
+              ..close();
+            c.drawPath(dm, _f(const Color(0xFF5BA8E8)));
+            c.drawPath(dm, _l(const Color(0xFF2F78BD), 1));
+            c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(31, 12, 38, 7), const Radius.circular(3.5)),
+                _f(const Color(0xFFA8D4FA)));
+            for (final x in [40.0, 50.0, 60.0]) {
+              c.drawLine(Offset(x, 12), Offset(x, 3 + (x - 50).abs() * 0.35), _l(const Color(0x552F78BD), 1));
+            }
+            c.drawCircle(const Offset(50, -2), 5.5, _f(Colors.white));
+            c.drawCircle(const Offset(50, -2), 5.5, _l(const Color(0xFFB7C7D8), 0.8));
+          }
+          break;
+        case 'a_cap':
+          {
+            final dm = Path()
+              ..moveTo(34, 16)
+              ..cubicTo(34, -2, 66, -2, 66, 16)
+              ..close();
+            c.drawPath(dm, _f(const Color(0xFFE8445A)));
+            c.drawPath(dm, _l(const Color(0xFFB82E44), 1));
+            c.drawOval(Rect.fromCenter(center: const Offset(50, 16.5), width: 36, height: 7), _f(const Color(0xFFB82E44)));
+            c.drawCircle(const Offset(50, 1.5), 2, _f(const Color(0xFFB82E44)));
+            c.drawLine(const Offset(50, 3), const Offset(50, 13), _l(const Color(0x44FFFFFF), 1));
+          }
+          break;
+        case 'a_santa':
+          {
+            final dm = Path()
+              ..moveTo(33, 16)
+              ..cubicTo(33, 2, 50, -9, 68, -3)
+              ..quadraticBezierTo(65, 6, 67, 16)
+              ..close();
+            c.drawPath(dm, _f(const Color(0xFFE8445A)));
+            c.drawPath(dm, _l(const Color(0xFFB82E44), 1));
+            c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(30, 12, 40, 7), const Radius.circular(3.5)), _f(Colors.white));
+            c.drawCircle(const Offset(69, -3), 4.5, _f(Colors.white));
+          }
+          break;
+        case 'a_cowboy':
+          {
+            c.drawOval(Rect.fromCenter(center: const Offset(50, 13), width: 50, height: 8), _f(const Color(0xFFB07A3C)));
+            final cr = RRect.fromRectAndRadius(const Rect.fromLTWH(39, -3, 22, 16), const Radius.circular(5));
+            c.drawRRect(cr, _f(const Color(0xFFB07A3C)));
+            c.drawRRect(cr, _l(const Color(0xFF7A4F1F), 1));
+            c.drawRect(const Rect.fromLTWH(39, 7, 22, 3.5), _f(const Color(0xFF6B3F1D)));
+            c.drawPath(_spark(const Offset(50, 8.8), 2.4), _f(const Color(0xFFFFD43B)));
+            c.drawOval(Rect.fromCenter(center: const Offset(50, -2), width: 14, height: 4), _f(const Color(0xFF8E5E2B)));
+          }
+          break;
+        case 'a_sunhat':
+          {
+            c.drawOval(Rect.fromCenter(center: const Offset(50, 12.5), width: 54, height: 11), _f(const Color(0xFFF4D58D)));
+            c.drawOval(Rect.fromCenter(center: const Offset(50, 12.5), width: 54, height: 11), _l(const Color(0xFFD9B35E), 1));
+            final dm = Path()
+              ..moveTo(37, 12)
+              ..cubicTo(37, -4, 63, -4, 63, 12)
+              ..close();
+            c.drawPath(dm, _f(const Color(0xFFF8E3A8)));
+            c.drawPath(dm, _l(const Color(0xFFD9B35E), 1));
+            c.drawRect(const Rect.fromLTWH(37.5, 6, 25, 3.5), _f(const Color(0xFFFF8FB8)));
+            c.drawCircle(const Offset(63, 8), 2.6, _f(const Color(0xFFFF8FB8)));
+            c.drawCircle(const Offset(66, 11), 2, _f(const Color(0xFFFF8FB8)));
+          }
+          break;
+        case 'a_bunny':
+          _both(c, () {
+            c.save();
+            c.translate(41.5, 6);
+            c.rotate(-0.2);
+            final ear = Rect.fromCenter(center: Offset.zero, width: 9.5, height: 28);
+            c.drawOval(ear, _f(Colors.white));
+            c.drawOval(ear, _l(const Color(0xFFD6C2D8), 1));
+            c.drawOval(Rect.fromCenter(center: const Offset(0, 1), width: 4.5, height: 20), _f(const Color(0xFFFFB6D5)));
+            c.restore();
+          });
+          break;
+        case 'a_graduate':
+          {
+            c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(39, 7, 22, 9), const Radius.circular(3)), _f(const Color(0xFF2B2B3A)));
+            final bd = Path()
+              ..moveTo(50, -2)
+              ..lineTo(73, 5)
+              ..lineTo(50, 12)
+              ..lineTo(27, 5)
+              ..close();
+            c.drawPath(bd, _f(const Color(0xFF3A3A4E)));
+            c.drawPath(bd, _l(const Color(0xFF1F1B2E), 1));
+            c.drawLine(const Offset(50, 5), const Offset(68, 7.5), _l(const Color(0xFFFFD43B), 1.2));
+            c.drawLine(const Offset(68, 7.5), const Offset(68, 17), _l(const Color(0xFFFFD43B), 1.5));
+            c.drawCircle(const Offset(68, 18), 1.8, _f(const Color(0xFFFFD43B)));
+            c.drawCircle(const Offset(50, 5), 1.6, _f(const Color(0xFFFFD43B)));
+          }
           break;
         case 'a_balloon':
           final hr = Offset(100 - _hand.dx, _hand.dy);
