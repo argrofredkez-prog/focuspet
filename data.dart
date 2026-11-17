@@ -1,0 +1,361 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'focus_animal.dart';
+
+const kInk = Color(0xFF4A3B5C);
+const emojiOf = {
+  Animal.cerdo: '🐷',
+  Animal.unicornio: '🦄',
+  Animal.tigre: '🐯',
+  Animal.cocodrilo: '🐲',
+};
+
+Color inkFor(Animal a, int scene) =>
+    (a == Animal.cocodrilo || scene == 2 || scene == 6) ? Colors.white : kInk;
+
+class Item {
+  final String id, name, emoji, kind, slot; // kind: food | acc | scene ; slot: head | eyes | neck
+  final int price, hunger, xp;
+  final Animal? animal;
+  final Uint8List? img; // dibujo propio (PNG)
+  const Item(this.id, this.name, this.emoji, this.price, this.kind,
+      {this.hunger = 0, this.xp = 0, this.animal, this.slot = '', this.img});
+}
+
+const catalog = <Item>[
+  // Complementos
+  Item('a_flower', 'Flor', '🌸', 20, 'acc', slot: 'head'),
+  Item('a_bow', 'Lazo', '🎀', 30, 'acc', slot: 'head'),
+  Item('a_headphones', 'Auriculares', '🎧', 45, 'acc', slot: 'head'),
+  Item('a_hat', 'Sombrero', '🎩', 50, 'acc', slot: 'head'),
+  Item('a_crown', 'Corona', '👑', 80, 'acc', slot: 'head'),
+  Item('a_glasses', 'Gafas de sol', '🕶️', 40, 'acc', slot: 'eyes'),
+  Item('a_scarf', 'Bufanda', '🧣', 25, 'acc', slot: 'neck'),
+  Item('a_bowtie', 'Pajarita', '👔', 35, 'acc', slot: 'neck'),
+  Item('a_wizard', 'Sombrero de mago', '🧙', 70, 'acc', slot: 'head'),
+  Item('a_chef', 'Gorro de chef', '👨‍🍳', 45, 'acc', slot: 'head'),
+  Item('a_antlers', 'Astas de reno', '🦌', 55, 'acc', slot: 'head'),
+  Item('a_halo', 'Aureola', '😇', 60, 'acc', slot: 'head'),
+  Item('a_pirate', 'Parche pirata', '🏴‍☠️', 40, 'acc', slot: 'eyes'),
+  Item('a_mustache', 'Bigote', '🥸', 30, 'acc', slot: 'face'),
+  Item('a_cape', 'Capa de superhéroe', '🦸', 90, 'acc', slot: 'back'),
+  Item('a_wings', 'Alas de ángel', '👼', 100, 'acc', slot: 'back'),
+  Item('a_balloon', 'Globo', '🎈', 35, 'acc', slot: 'hand'),
+  // Gorros
+  Item('a_beanie', 'Gorro de lana', '🧶', 35, 'acc', slot: 'head'),
+  Item('a_cap', 'Gorra', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_santa', 'Gorro navideño', '🎅', 45, 'acc', slot: 'head'),
+  Item('a_cowboy', 'Sombrero vaquero', '🤠', 55, 'acc', slot: 'head'),
+  Item('a_sunhat', 'Pamela', '👒', 40, 'acc', slot: 'head'),
+  Item('a_bunny', 'Orejas de conejo', '🐰', 35, 'acc', slot: 'head'),
+  Item('a_graduate', 'Birrete', '🎓', 60, 'acc', slot: 'head'),
+  // Botas y zapatos
+  Item('a_rainboots', 'Botas de lluvia', '🥾', 40, 'acc', slot: 'feet'),
+  Item('a_cowboots', 'Botas vaqueras', '👢', 50, 'acc', slot: 'feet'),
+  Item('a_sneakers', 'Zapatillas', '👟', 35, 'acc', slot: 'feet'),
+  Item('a_snowboots', 'Botas de nieve', '⛄', 45, 'acc', slot: 'feet'),
+  Item('a_shoes', 'Zapatos de gala', '👞', 30, 'acc', slot: 'feet'),
+  // Ropa
+  Item('a_tshirt', 'Camiseta de rayas', '👕', 40, 'acc', slot: 'body'),
+  Item('a_dress', 'Vestido', '👗', 60, 'acc', slot: 'body'),
+  Item('a_sweater', 'Jersey navideño', '🎄', 55, 'acc', slot: 'body'),
+  Item('a_hoodie', 'Sudadera', '🧥', 50, 'acc', slot: 'body'),
+  Item('a_overalls', 'Peto vaquero', '👖', 55, 'acc', slot: 'body'),
+  Item('a_kimono', 'Kimono', '👘', 70, 'acc', slot: 'body'),
+  Item('a_tux', 'Esmoquin', '🤵', 80, 'acc', slot: 'body'),
+  // Diademas y tiaras
+  Item('a_hb_star', 'Diadema de estrellas', '⭐', 40, 'acc', slot: 'head'),
+  Item('a_hb_heart', 'Diadema de corazones', '💗', 40, 'acc', slot: 'head'),
+  Item('a_hb_flower', 'Diadema de flores', '🌼', 45, 'acc', slot: 'head'),
+  Item('a_hb_cat', 'Diadema de gatito', '🐱', 45, 'acc', slot: 'head'),
+  Item('a_hb_rainbow', 'Diadema arcoíris', '🌈', 50, 'acc', slot: 'head'),
+  Item('a_tiara', 'Tiara', '💎', 75, 'acc', slot: 'head'),
+  // Gorras y gorros nuevos
+  Item('a_cap_pink', 'Gorra rosa', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_cap_blue', 'Gorra azul', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_cap_rainbow', 'Gorra arcoíris', '🧢', 50, 'acc', slot: 'head'),
+  Item('a_pompom', 'Gorro con pompón', '🧶', 45, 'acc', slot: 'head'),
+  Item('a_beret', 'Boina', '🎨', 40, 'acc', slot: 'head'),
+  Item('a_bucket', 'Gorro de pescador', '🎣', 40, 'acc', slot: 'head'),
+  // Camisetas nuevas
+  Item('a_tee_heart', 'Camiseta corazón', '💖', 45, 'acc', slot: 'body'),
+  Item('a_tee_star', 'Camiseta estrella', '🌟', 45, 'acc', slot: 'body'),
+  Item('a_tee_rainbow', 'Camiseta arcoíris', '🌈', 50, 'acc', slot: 'body'),
+  Item('a_tee_berry', 'Camiseta fresa', '🍓', 50, 'acc', slot: 'body'),
+  // Vestidos nuevos
+  Item('a_dress_princess', 'Vestido de princesa', '👸', 85, 'acc', slot: 'body'),
+  Item('a_dress_flower', 'Vestido de flores', '🌻', 65, 'acc', slot: 'body'),
+  Item('a_dress_tutu', 'Tutú de bailarina', '🩰', 75, 'acc', slot: 'body'),
+  Item('a_dress_party', 'Vestido de fiesta', '✨', 80, 'acc', slot: 'body'),
+  // Más complementos
+  Item('a_necklace', 'Collar de perlas', '📿', 45, 'acc', slot: 'neck'),
+  Item('a_neck_heart', 'Collar de corazón', '💖', 40, 'acc', slot: 'neck'),
+  Item('a_neck_bell', 'Cascabel', '🔔', 30, 'acc', slot: 'neck'),
+  Item('a_gl_heart', 'Gafas de corazón', '😍', 45, 'acc', slot: 'eyes'),
+  Item('a_wand', 'Varita mágica', '🪄', 60, 'acc', slot: 'hand'),
+  Item('a_lolli', 'Piruleta gigante', '🍭', 35, 'acc', slot: 'hand'),
+  Item('a_butterfly', 'Alas de mariposa', '🦋', 95, 'acc', slot: 'back'),
+  Item('a_backpack', 'Mochila', '🎒', 55, 'acc', slot: 'back'),
+  Item('a_stickers', 'Pegatinas de estrella', '✨', 25, 'acc', slot: 'face'),
+  Item('a_freckles', 'Pecas', '🟤', 20, 'acc', slot: 'face'),
+  // Fondos kawaii
+  Item('s_candy', 'Mundo de caramelo', '🍭', 60, 'scene'),
+  Item('s_cloud', 'Nubes de algodón', '☁️', 60, 'scene'),
+  Item('s_galaxy', 'Galaxia kawaii', '🪐', 90, 'scene'),
+  Item('s_sea', 'Fondo del mar', '🐠', 70, 'scene'),
+  Item('s_mush', 'Bosque de setas', '🍄', 70, 'scene'),
+  Item('s_bakery', 'Pastelería', '🧁', 80, 'scene'),
+  Item('s_winter', 'Invierno kawaii', '⛄', 70, 'scene'),
+  Item('s_jungle', 'Selva tropical', '🦜', 80, 'scene'),
+  Item('s_falls', 'Cascada de la selva', '🐸', 85, 'scene'),
+  Item('s_meadow', 'Pradera florida', '🌼', 75, 'scene'),
+  Item('s_balloons', 'Pradera de globos', '🎈', 80, 'scene'),
+];
+
+
+const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10, 's_jungle': 11, 's_falls': 12, 's_meadow': 13, 's_balloons': 14};
+const slotNames = {
+  'head': 'cabeza',
+  'eyes': 'ojos',
+  'neck': 'cuello',
+  'face': 'cara',
+  'back': 'espalda',
+  'hand': 'mano',
+  'body': 'cuerpo',
+  'feet': 'pies',
+};
+const modeNames = ['Estudiar', 'Entrenar', 'Dormir'];
+const modeEmoji = ['📚', '🏋️', '😴'];
+const stageNames = ['Bebé', 'Joven', 'Adulto'];
+const stageScale = [0.72, 0.86, 1.0];
+int stageOf(int xp) => xp >= 150 ? 2 : (xp >= 50 ? 1 : 0);
+
+List<Item> allItems() => [...catalog, ...store.customs];
+Item itemById(String id) =>
+    allItems().firstWhere((i) => i.id == id, orElse: () => catalog.first);
+
+// Escena efectiva: los fondos kawaii comprados (4+); si no, el paisaje propio del animal
+int effScene(Animal a) {
+  final s = store.scene(a);
+  return s >= 4 ? s : 0;
+}
+
+late Store store;
+double dimLevel = 0.25; // atenuación de los fondos (0 = nada)
+final ValueNotifier<bool> darkMode = ValueNotifier<bool>(true);
+
+class Store {
+  final SharedPreferences p;
+  Store(this.p);
+
+  int get coins => p.getInt('coins') ?? 0;
+  set coins(int v) {
+    p.setInt('coins', v);
+  }
+
+  bool get strict => p.getBool('strict') ?? true;
+  // apps permitidas en modo no estricto, por estado (0 estudiar, 1 entrenar)
+  List<String> allowedFor(int mode) =>
+      p.getStringList('allowed_$mode') ?? p.getStringList('allowed') ?? <String>[];
+  void setAllowed(int mode, List<String> l) {
+    p.setStringList('allowed_$mode', l);
+  }
+
+  double get bright => p.getDouble('bright') ?? 0.6;
+  bool get blockNotifs => p.getBool('dnd') ?? true;
+
+  // Avisos diarios (minutos del día; -1 = desactivado). 1 dormir, 2 entrenar, 3 estudiar, 4 repasar;
+  // 5, 6 y 7 son el 2.º aviso de dormir, entrenar y estudiar
+  int rem(int id) => p.getInt('r$id') ?? (id == 1 ? 1410 : -1);
+
+  // Minutos por estado (0 estudiar, 1 entrenar, 2 dormir)
+  String _day() {
+    final n = DateTime.now();
+    return '${n.year}${n.month}${n.day}';
+  }
+
+  int minsToday(int mode) => p.getInt('d${_day()}_$mode') ?? 0;
+  int minsTotal(int mode) => p.getInt('t_$mode') ?? 0;
+  void addMins(int mode, int m) {
+    p.setInt('d${_day()}_$mode', minsToday(mode) + m);
+    p.setInt('t_$mode', minsTotal(mode) + m);
+  }
+
+  int inv(String id) => p.getInt('inv_$id') ?? 0;
+  void setInv(String id, int v) {
+    p.setInt('inv_$id', v);
+  }
+
+  int xp(Animal a) => p.getInt('xp_${a.name}') ?? 0;
+  void addXp(Animal a, int v) {
+    p.setInt('xp_${a.name}', xp(a) + v);
+  }
+
+  // Complementos puestos (uno por zona: cabeza, ojos, cuello)
+  List<String> accIds(Animal a) {
+    final s = p.getString('acc_${a.name}') ?? '';
+    return s.isEmpty ? <String>[] : s.split(',');
+  }
+
+  void setAccIds(Animal a, List<String> l) {
+    p.setString('acc_${a.name}', l.join(','));
+  }
+
+  void equip(Animal a, Item it) {
+    final l = accIds(a)..removeWhere((id) => itemById(id).slot == it.slot);
+    l.add(it.id);
+    setAccIds(a, l);
+  }
+
+  void unequip(Animal a, String id) {
+    setAccIds(a, accIds(a)..remove(id));
+  }
+
+  int scene(Animal a) => p.getInt('scene_${a.name}') ?? 0;
+  void setScene(Animal a, int v) {
+    p.setInt('scene_${a.name}', v);
+  }
+
+  // Hambre 0..100: baja 4 puntos por hora
+  double hunger(Animal a) {
+    final kt = 'ht_${a.name}', kh = 'hg_${a.name}';
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (!p.containsKey(kt)) {
+      p.setInt(kt, now);
+      p.setDouble(kh, 80.0);
+      return 80.0;
+    }
+    final h = p.getDouble(kh) ?? 80.0;
+    final hours = (now - (p.getInt(kt) ?? now)) / 3600000.0;
+    return (h - hours * 4).clamp(0.0, 100.0).toDouble();
+  }
+
+  void feed(Animal a, int amount) {
+    final h = (hunger(a) + amount).clamp(0.0, 100.0).toDouble();
+    p.setDouble('hg_${a.name}', h);
+    p.setInt('ht_${a.name}', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  // ---------- artículos creados con dibujos ----------
+  List<Item>? _cc;
+
+  List<Map<String, dynamic>> _rawCustoms() {
+    final s = p.getString('customs');
+    if (s == null) return [];
+    return [for (final m in jsonDecode(s) as List<dynamic>) Map<String, dynamic>.from(m as Map)];
+  }
+
+  List<Item> get customs {
+    final cached = _cc;
+    if (cached != null) return cached;
+    final l = [
+      for (final m in _rawCustoms())
+        Item(m['id'] as String, m['name'] as String, '', m['kind'] == 'food' ? 12 : 25,
+            m['kind'] as String,
+            hunger: m['kind'] == 'food' ? 20 : 0,
+            xp: m['kind'] == 'food' ? 5 : 0,
+            slot: m['slot'] as String,
+            img: base64Decode(m['png'] as String))
+    ];
+    _cc = l;
+    return l;
+  }
+
+  void addCustom(String name, String kind, String slot, Uint8List png) {
+    final raw = _rawCustoms();
+    raw.add({
+      'id': 'c_${DateTime.now().millisecondsSinceEpoch}',
+      'name': name,
+      'kind': kind,
+      'slot': slot,
+      'png': base64Encode(png),
+    });
+    p.setString('customs', jsonEncode(raw));
+    _cc = null;
+  }
+
+  void delCustom(String id) {
+    for (final a in Animal.values) {
+      setAccIds(a, accIds(a)..remove(id));
+    }
+    final raw = _rawCustoms()..removeWhere((m) => m['id'] == id);
+    p.setString('customs', jsonEncode(raw));
+    _cc = null;
+  }
+
+  // ---------- repasos (curva del olvido) ----------
+  List<Map<String, dynamic>> topics() {
+    final s = p.getString('topics');
+    if (s == null) return [];
+    return [for (final m in jsonDecode(s) as List<dynamic>) Map<String, dynamic>.from(m as Map)];
+  }
+
+  void saveTopics(List<Map<String, dynamic>> l) {
+    p.setString('topics', jsonEncode(l));
+  }
+
+  // 14 días tras el 1.º estudio, 30 tras el 2.º, y 30 en adelante (mensual)
+  String get intervalsText {
+    final s = p.getString('intervals');
+    return (s == null || s == '14,30,60,120,180') ? '14,30' : s;
+  }
+
+  List<int> get intervals {
+    final l = <int>[];
+    for (final e in intervalsText.split(',')) {
+      final v = int.tryParse(e.trim()) ?? 0;
+      if (v > 0) l.add(v);
+    }
+    return l.isEmpty ? <int>[14] : l;
+  }
+
+  // Fecha del próximo repaso: último estudio + intervalo según nº de veces estudiado
+  DateTime dueDate(Map<String, dynamic> t) {
+    final iv = intervals;
+    final n = t['n'] as int;
+    final days = iv[min(max(n - 1, 0), iv.length - 1)];
+    final last = DateTime.fromMillisecondsSinceEpoch(t['last'] as int);
+    return DateTime(last.year, last.month, last.day + days);
+  }
+
+  int daysLeft(Map<String, dynamic> t) {
+    final d = dueDate(t);
+    final now = DateTime.now();
+    return DateTime.utc(d.year, d.month, d.day)
+        .difference(DateTime.utc(now.year, now.month, now.day))
+        .inDays;
+  }
+
+  int get dueCount => topics().where((t) => daysLeft(t) <= 0).length;
+
+  // ---------- estados de ánimo (clave 'aaaa-mm-dd' -> {m: 0..4, n: nota}) ----------
+  Map<String, dynamic> moods() {
+    final s = p.getString('moods');
+    return s == null ? <String, dynamic>{} : Map<String, dynamic>.from(jsonDecode(s) as Map);
+  }
+
+  void setMood(String key, List<int> tags, String note) {
+    final all = moods();
+    all[key] = {'t': tags, 'n': note};
+    p.setString('moods', jsonEncode(all));
+  }
+
+  void delMood(String key) {
+    final all = moods()..remove(key);
+    p.setString('moods', jsonEncode(all));
+  }
+
+  // ---------- ciclo: [{s: inicio (ms UTC), d: días de regla, ov: ovulación (ms) o null}] ----------
+  List<Map<String, dynamic>> cycles() {
+    final s = p.getString('cycles');
+    if (s == null) return [];
+    return [for (final m in jsonDecode(s) as List<dynamic>) Map<String, dynamic>.from(m as Map)];
+  }
+
+  void saveCycles(List<Map<String, dynamic>> l) {
+    p.setString('cycles', jsonEncode(l));
+  }
+}
