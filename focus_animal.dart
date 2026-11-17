@@ -1127,6 +1127,11 @@ class _AnimalPainter extends CustomPainter {
     for (final id in acc) {
       if (!_clothIds.contains(id)) continue;
       c.save();
+      // holgada: más grande que el cuerpo
+      c.translate(50, 68);
+      c.scale(1.2, 1.1);
+      c.translate(-50, -68);
+      c.save();
       c.clipPath(Path()..addOval(body));
       switch (id) {
         case 'a_tshirt':
@@ -1306,6 +1311,10 @@ class _AnimalPainter extends CustomPainter {
       }
       c.restore();
       c.drawOval(body, _l(p.line, 1.2));
+      // arrugas de tela suelta
+      c.drawPath(Path()..moveTo(36, 80)..quadraticBezierTo(40, 84, 38, 90), _l(p.line.withAlpha(70), 0.8));
+      c.drawPath(Path()..moveTo(64, 78)..quadraticBezierTo(60, 83, 63, 89), _l(p.line.withAlpha(70), 0.8));
+      c.restore();
     }
   }
 
@@ -1438,9 +1447,9 @@ class _AnimalPainter extends CustomPainter {
       final long = id == 'a_sweater' || id == 'a_hoodie' || id == 'a_tux';
       _both(c, () {
         c.save();
-        c.translate(31.5, long ? 62 : 59);
-        c.rotate(0.45);
-        final r = Rect.fromCenter(center: Offset.zero, width: 11.5, height: long ? 20 : 13);
+        c.translate(29.5, long ? 63 : 60);
+        c.rotate(0.35);
+        final r = Rect.fromCenter(center: Offset.zero, width: 15, height: long ? 26 : 17);
         c.drawOval(r, _f(col));
         c.drawOval(r, _l(p.line, 1));
         c.restore();

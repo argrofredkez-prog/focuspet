@@ -123,6 +123,7 @@ class _HomeState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
+    syncPetReminders(); // reprograma los avisos de las mascotas
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -910,6 +911,11 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   int get _pauseCost => pausesUsed < maxPauses ? 0 : 10;
 
   void _pause() {
+    if (widget.mode == 2 && pausesUsed >= 1) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('En modo dormir solo hay 1 pausa 😴')));
+      return;
+    }
     if (pausesUsed >= maxPauses + 3) {
       _abandon();
       return;
@@ -1069,7 +1075,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final paused = pauseStart != null;
-    final left = maxPauses - pausesUsed;
+    final left = (widget.mode == 2 ? 1 : maxPauses) - pausesUsed;
     final scene = widget.mode == 2 ? 2 : effScene(widget.animal);
     final ink = inkFor(widget.animal, scene);
     return PopScope(
@@ -1133,8 +1139,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                         child: Text(paused
                             ? 'Reanudar'
                             : (left > 0
-                                ? 'Pausar 5 min ($left gratis)'
-                                : (pausesUsed < maxPauses + 3 ? 'Pausar 5 min (10 🪙)' : 'Pausar = abandonar')))),
+                                ? (widget.mode == 2 ? 'Pausar 5 min (1 sola vez)' : 'Pausar 5 min ($left gratis)')
+                                : (widget.mode == 2
+                                    ? 'Sin más pausas'
+                                    : (pausesUsed < maxPauses + 3 ? 'Pausar 5 min (10 🪙)' : 'Pausar = abandonar'))))),
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
                         onPressed: _addPhrase, icon: const Icon(Icons.chat_bubble_outline)),

@@ -24,10 +24,12 @@ object EndAlarm {
         val show = PendingIntent.getActivity(
             ctx, 21, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
+        ctx.getSharedPreferences("focuspet_native", Context.MODE_PRIVATE).edit().putLong("sess_end", at).apply()
         am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pi)
     }
 
     fun cancel(ctx: Context) {
+        ctx.getSharedPreferences("focuspet_native", Context.MODE_PRIVATE).edit().putLong("sess_end", 0L).apply()
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         PendingIntent.getBroadcast(
             ctx, 20, Intent(ctx, EndReceiver::class.java),

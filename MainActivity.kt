@@ -108,6 +108,14 @@ class MainActivity : FlutterActivity() {
                     "musicStop" -> { ChipMusic.stop(); result.success(null) }
                     "musicPause" -> { ChipMusic.pause(); result.success(null) }
                     "musicResume" -> { ChipMusic.resume(); result.success(null) }
+                    "petReminder" -> {
+                        val m = call.arguments as Map<*, *>
+                        PetReminder.configure(
+                            applicationContext, m["on"] as Boolean, (m["every"] as Number).toInt(),
+                            (m["from"] as Number).toInt(), (m["to"] as Number).toInt(), m["data"] as String
+                        )
+                        result.success(null)
+                    }
                     "cancelEnd" -> {
                         EndAlarm.cancel(applicationContext)
                         result.success(null)

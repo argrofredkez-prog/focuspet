@@ -70,7 +70,36 @@ List<Pet> loadPets() {
   }
 }
 
-void savePets(List<Pet> l) => store.p.setString('pets', jsonEncode([for (final p in l) p.toJson()]));
+const _pch = MethodChannel('focuspet/blocker');
+const petReminderDefaults = [
+  'Vuelve al trabajo, es hora de conseguirlo 💪',
+  'Tu objetivo no descansa, tú tampoco',
+  'La disciplina vence todo',
+  'El mejor momento es ahora, regresa',
+  'Otra oportunidad, vuelve',
+];
+
+// programa (o apaga) los avisos de las mascotas en el móvil
+Future<void> syncPetReminders() async {
+  final pets = loadPets();
+  final data = jsonEncode(pets.isEmpty
+      ? [{'name': 'Tu mascota', 'phrases': petReminderDefaults}]
+      : [for (final p in pets) {'name': p.name, 'phrases': p.phrases.isEmpty ? petReminderDefaults : p.phrases}]);
+  try {
+    await _pch.invokeMethod('petReminder', {
+      'on': store.p.getBool('pet_rem_on') ?? false,
+      'every': store.p.getInt('pet_rem_min') ?? 120,
+      'from': store.p.getInt('pet_sleep_from') ?? 23 * 60,
+      'to': store.p.getInt('pet_sleep_to') ?? 8 * 60,
+      'data': data,
+    });
+  } catch (_) {}
+}
+
+void savePets(List<Pet> l) {
+  store.p.setString('pets', jsonEncode([for (final p in l) p.toJson()]));
+  syncPetReminders();
+}
 
 String petPhrase([Pet? p]) {
   final l = loadPets();
@@ -406,6 +435,35 @@ class PetsScreen extends StatefulWidget {
 
 class _PetsState extends State<PetsScreen> {
   List<Pet> pets = loadPets();
+  bool remOn = store.p.getBool('pet_rem_on') ?? false;
+  int every = store.p.getInt('pet_rem_min') ?? 120;
+  int from = store.p.getInt('pet_sleep_from') ?? 23 * 60;
+  int to = store.p.getInt('pet_sleep_to') ?? 8 * 60;
+
+  String _hm(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+
+  String _every(int m) => m < 60 ? '$m min' : (m % 60 == 0 ? '${m ~/ 60} h' : '${m ~/ 60} h ${m % 60} min');
+
+  void _saveRem() {
+    store.p.setBool('pet_rem_on', remOn);
+    store.p.setInt('pet_rem_min', every);
+    store.p.setInt('pet_sleep_from', from);
+    store.p.setInt('pet_sleep_to', to);
+    syncPetReminders();
+    setState(() {});
+  }
+
+  Future<void> _time(bool isFrom) async {
+    final v = isFrom ? from : to;
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay(hour: v ~/ 60, minute: v % 60));
+    if (t == null) return;
+    if (isFrom) {
+      from = t.hour * 60 + t.minute;
+    } else {
+      to = t.hour * 60 + t.minute;
+    }
+    _saveRem();
+  }
 
   Future<void> _edit([Pet? p]) async {
     final r = await Navigator.push<Pet>(context, MaterialPageRoute(builder: (_) => _PetEditor(pet: p)));
@@ -421,6 +479,43 @@ class _PetsState extends State<PetsScreen> {
     savePets(pets);
   }
 
+  Widget _remCard() => Card(
+        margin: const EdgeInsets.all(12),
+        child: Column(children: [
+          SwitchListTile(
+            title: const Text('🔔 Avisos para volver a estudiar'),
+            subtitle: const Text('Tu mascota te manda una notificación'),
+            value: remOn,
+            onChanged: (v) {
+              remOn = v;
+              if (v) _pch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
+              _saveRem();
+            },
+          ),
+          if (remOn) ...[
+            ListTile(
+              title: const Text('Cada'),
+              trailing: DropdownButton<int>(
+                value: const [30, 60, 90, 120, 180, 240, 360].contains(every) ? every : 120,
+                items: [for (final m in const [30, 60, 90, 120, 180, 240, 360]) DropdownMenuItem(value: m, child: Text(_every(m)))],
+                onChanged: (v) {
+                  every = v ?? 120;
+                  _saveRem();
+                },
+              ),
+            ),
+            ListTile(
+              title: const Text('😴 Sin avisos al dormir'),
+              subtitle: Text('De ${_hm(from)} a ${_hm(to)}'),
+              trailing: Wrap(children: [
+                TextButton(onPressed: () => _time(true), child: const Text('Desde')),
+                TextButton(onPressed: () => _time(false), child: const Text('Hasta')),
+              ]),
+            ),
+          ],
+        ]),
+      );
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Mascotas ayudantes 🐾')),
@@ -428,28 +523,28 @@ class _PetsState extends State<PetsScreen> {
             ? null
             : FloatingActionButton.extended(
                 onPressed: _edit, icon: const Icon(Icons.add), label: const Text('Crear mascota')),
-        body: pets.isEmpty
-            ? const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                        'Crea una mascota que te anime con frases para empezar otra sesión de estudio (hasta 4).',
-                        textAlign: TextAlign.center)))
-            : ListView(children: [
-                for (final p in pets)
-                  ListTile(
-                    leading: PetSprite(kind: p.kind, color: Color(p.color), size: 56),
-                    title: Text(p.name),
-                    subtitle: Text('${petLabels[p.kind]} · ${p.phrases.isEmpty ? 'frases por defecto' : '${p.phrases.length} frases'}'),
-                    onTap: () => _edit(p),
-                    trailing: IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () {
-                          setState(() => pets.remove(p));
-                          savePets(pets);
-                        }),
-                  ),
-              ]),
+        body: ListView(children: [
+          _remCard(),
+          if (pets.isEmpty)
+            const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Crea una mascota que te anime con frases para empezar otra sesión de estudio (hasta 4).',
+                    textAlign: TextAlign.center)),
+          for (final p in pets)
+            ListTile(
+              leading: PetSprite(kind: p.kind, color: Color(p.color), size: 56),
+              title: Text(p.name),
+              subtitle: Text('${petLabels[p.kind]} · ${p.phrases.isEmpty ? 'frases por defecto' : '${p.phrases.length} frases'}'),
+              onTap: () => _edit(p),
+              trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () {
+                    setState(() => pets.remove(p));
+                    savePets(pets);
+                  }),
+            ),
+          const SizedBox(height: 80),
+        ]),
       );
 }
 

@@ -12,6 +12,7 @@
         </service>
         <receiver android:name=".BedtimeReceiver" android:exported="false" />
         <receiver android:name=".EndReceiver" android:exported="false" />
+        <receiver android:name=".PetReminderReceiver" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
