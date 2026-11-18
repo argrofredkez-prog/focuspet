@@ -105,5 +105,6 @@ class BedtimeReceiver : BroadcastReceiver() {
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         Bedtime.restoreAll(context)
+        PetReminder.restore(context)
     }
 }

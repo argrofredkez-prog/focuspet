@@ -10,11 +10,11 @@ const emojiOf = {
   Animal.cerdo: '🐷',
   Animal.unicornio: '🦄',
   Animal.tigre: '🐯',
-  Animal.cocodrilo: '🐉',
+  Animal.cocodrilo: '🐲',
 };
 
 Color inkFor(Animal a, int scene) =>
-    (a == Animal.cocodrilo || scene == 2 || scene == 6) ? Colors.white : kInk;
+    (a == Animal.cocodrilo || scene == 2 || scene == 6 || scene == 16 || scene == 19) ? Colors.white : kInk;
 
 class Item {
   final String id, name, emoji, kind, slot; // kind: food | acc | scene ; slot: head | eyes | neck
@@ -26,23 +26,6 @@ class Item {
 }
 
 const catalog = <Item>[
-  // Comida
-  Item('f_cerdo1', 'Fresas', '🍓', 10, 'food', hunger: 20, xp: 5, animal: Animal.cerdo),
-  Item('f_cerdo2', 'Tarta', '🍰', 25, 'food', hunger: 45, xp: 12, animal: Animal.cerdo),
-  Item('f_cerdo3', 'Donut', '🍩', 15, 'food', hunger: 30, xp: 8, animal: Animal.cerdo),
-  Item('f_cerdo4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.cerdo),
-  Item('f_uni1', 'Piruleta', '🍭', 10, 'food', hunger: 20, xp: 5, animal: Animal.unicornio),
-  Item('f_uni2', 'Cupcake', '🧁', 25, 'food', hunger: 45, xp: 12, animal: Animal.unicornio),
-  Item('f_uni3', 'Helado', '🍦', 15, 'food', hunger: 30, xp: 8, animal: Animal.unicornio),
-  Item('f_uni4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.unicornio),
-  Item('f_tigre1', 'Carne', '🥩', 10, 'food', hunger: 20, xp: 5, animal: Animal.tigre),
-  Item('f_tigre2', 'Muslo de pollo', '🍗', 25, 'food', hunger: 45, xp: 12, animal: Animal.tigre),
-  Item('f_tigre3', 'Costillas', '🍖', 15, 'food', hunger: 30, xp: 8, animal: Animal.tigre),
-  Item('f_tigre4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.tigre),
-  Item('f_croc1', 'Carne asada', '🍖', 10, 'food', hunger: 20, xp: 5, animal: Animal.cocodrilo),
-  Item('f_croc2', 'Pollo', '🍗', 25, 'food', hunger: 45, xp: 12, animal: Animal.cocodrilo),
-  Item('f_croc3', 'Chile picante', '🌶️', 15, 'food', hunger: 30, xp: 8, animal: Animal.cocodrilo),
-  Item('f_croc4', 'Banquete', '🍱', 60, 'food', hunger: 90, xp: 30, animal: Animal.cocodrilo),
   // Complementos
   Item('a_flower', 'Flor', '🌸', 20, 'acc', slot: 'head'),
   Item('a_bow', 'Lazo', '🎀', 30, 'acc', slot: 'head'),
@@ -83,6 +66,41 @@ const catalog = <Item>[
   Item('a_overalls', 'Peto vaquero', '👖', 55, 'acc', slot: 'body'),
   Item('a_kimono', 'Kimono', '👘', 70, 'acc', slot: 'body'),
   Item('a_tux', 'Esmoquin', '🤵', 80, 'acc', slot: 'body'),
+  // Diademas y tiaras
+  Item('a_hb_star', 'Diadema de estrellas', '⭐', 40, 'acc', slot: 'head'),
+  Item('a_hb_heart', 'Diadema de corazones', '💗', 40, 'acc', slot: 'head'),
+  Item('a_hb_flower', 'Diadema de flores', '🌼', 45, 'acc', slot: 'head'),
+  Item('a_hb_cat', 'Diadema de gatito', '🐱', 45, 'acc', slot: 'head'),
+  Item('a_hb_rainbow', 'Diadema arcoíris', '🌈', 50, 'acc', slot: 'head'),
+  Item('a_tiara', 'Tiara', '💎', 75, 'acc', slot: 'head'),
+  // Gorras y gorros nuevos
+  Item('a_cap_pink', 'Gorra rosa', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_cap_blue', 'Gorra azul', '🧢', 40, 'acc', slot: 'head'),
+  Item('a_cap_rainbow', 'Gorra arcoíris', '🧢', 50, 'acc', slot: 'head'),
+  Item('a_pompom', 'Gorro con pompón', '🧶', 45, 'acc', slot: 'head'),
+  Item('a_beret', 'Boina', '🎨', 40, 'acc', slot: 'head'),
+  Item('a_bucket', 'Gorro de pescador', '🎣', 40, 'acc', slot: 'head'),
+  // Camisetas nuevas
+  Item('a_tee_heart', 'Camiseta corazón', '💖', 45, 'acc', slot: 'body'),
+  Item('a_tee_star', 'Camiseta estrella', '🌟', 45, 'acc', slot: 'body'),
+  Item('a_tee_rainbow', 'Camiseta arcoíris', '🌈', 50, 'acc', slot: 'body'),
+  Item('a_tee_berry', 'Camiseta fresa', '🍓', 50, 'acc', slot: 'body'),
+  // Vestidos nuevos
+  Item('a_dress_princess', 'Vestido de princesa', '👸', 85, 'acc', slot: 'body'),
+  Item('a_dress_flower', 'Vestido de flores', '🌻', 65, 'acc', slot: 'body'),
+  Item('a_dress_tutu', 'Tutú de bailarina', '🩰', 75, 'acc', slot: 'body'),
+  Item('a_dress_party', 'Vestido de fiesta', '✨', 80, 'acc', slot: 'body'),
+  // Más complementos
+  Item('a_necklace', 'Collar de perlas', '📿', 45, 'acc', slot: 'neck'),
+  Item('a_neck_heart', 'Collar de corazón', '💖', 40, 'acc', slot: 'neck'),
+  Item('a_neck_bell', 'Cascabel', '🔔', 30, 'acc', slot: 'neck'),
+  Item('a_gl_heart', 'Gafas de corazón', '😍', 45, 'acc', slot: 'eyes'),
+  Item('a_wand', 'Varita mágica', '🪄', 60, 'acc', slot: 'hand'),
+  Item('a_lolli', 'Piruleta gigante', '🍭', 35, 'acc', slot: 'hand'),
+  Item('a_butterfly', 'Alas de mariposa', '🦋', 95, 'acc', slot: 'back'),
+  Item('a_backpack', 'Mochila', '🎒', 55, 'acc', slot: 'back'),
+  Item('a_stickers', 'Pegatinas de estrella', '✨', 25, 'acc', slot: 'face'),
+  Item('a_freckles', 'Pecas', '🟤', 20, 'acc', slot: 'face'),
   // Fondos kawaii
   Item('s_candy', 'Mundo de caramelo', '🍭', 60, 'scene'),
   Item('s_cloud', 'Nubes de algodón', '☁️', 60, 'scene'),
@@ -91,10 +109,19 @@ const catalog = <Item>[
   Item('s_mush', 'Bosque de setas', '🍄', 70, 'scene'),
   Item('s_bakery', 'Pastelería', '🧁', 80, 'scene'),
   Item('s_winter', 'Invierno kawaii', '⛄', 70, 'scene'),
+  Item('s_jungle', 'Selva tropical', '🦜', 80, 'scene'),
+  Item('s_falls', 'Cascada de la selva', '🐸', 85, 'scene'),
+  Item('s_meadow', 'Pradera florida', '🌼', 75, 'scene'),
+  Item('s_balloons', 'Pradera de globos', '🎈', 80, 'scene'),
+  Item('s_farm', 'Granja feliz', '🐮', 75, 'scene'),
+  Item('s_space', 'Universo', '🚀', 95, 'scene'),
+  Item('s_desert', 'Desierto', '🌵', 70, 'scene'),
+  Item('s_autumn', 'Bosque de otoño', '🍂', 75, 'scene'),
+  Item('s_city', 'Ciudad de noche', '🌃', 90, 'scene'),
 ];
 
 
-const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10};
+const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10, 's_jungle': 11, 's_falls': 12, 's_meadow': 13, 's_balloons': 14, 's_farm': 15, 's_space': 16, 's_desert': 17, 's_autumn': 18, 's_city': 19};
 const slotNames = {
   'head': 'cabeza',
   'eyes': 'ojos',
@@ -336,4 +363,18 @@ class Store {
   void saveCycles(List<Map<String, dynamic>> l) {
     p.setString('cycles', jsonEncode(l));
   }
+}
+
+const defaultPhrases = [
+  '¡Tú puedes! Ya llevas parte del camino 💪',
+  'Respira. Un poco más y lo logras ✨',
+  'Tu yo del futuro te dará las gracias 💖',
+  'Ahora no toca el móvil, toca brillar 🌟',
+];
+
+List<String> loadPhrases() =>
+    List<String>.from(store.p.getStringList('phrases') ?? defaultPhrases);
+
+void savePhrases(List<String> l) {
+  store.p.setStringList('phrases', l);
 }

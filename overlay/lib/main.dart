@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'animal_background.dart';
 import 'data.dart';
 import 'focus_animal.dart';
+import 'pets.dart';
 import 'game.dart';
 import 'cycle.dart';
 import 'mood.dart';
@@ -17,19 +18,6 @@ import 'widgets.dart';
 const _ch = MethodChannel('focuspet/blocker');
 const maxPauses = 3, pauseMinutes = 5;
 
-const defaultPhrases = [
-  '¡Tú puedes! Ya llevas parte del camino 💪',
-  'Respira. Un poco más y lo logras ✨',
-  'Tu yo del futuro te dará las gracias 💖',
-  'Ahora no toca el móvil, toca brillar 🌟',
-];
-
-List<String> loadPhrases() =>
-    List<String>.from(store.p.getStringList('phrases') ?? defaultPhrases);
-
-void savePhrases(List<String> l) {
-  store.p.setStringList('phrases', l);
-}
 
 String _dur(int m) => m >= 60 ? '${m ~/ 60} h ${m % 60} min' : '$m min';
 
@@ -122,6 +110,7 @@ class _HomeState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
+    syncPetReminders(); // reprograma los avisos de las mascotas
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -271,12 +260,17 @@ class _HomeState extends State<HomeScreen> {
         : store.allowedFor(mode).map((e) => e.substring(0, e.indexOf('|'))).toList();
     await _ch.invokeMethod('setAllowed', pkgs);
     if (!mounted) return;
-    await _go(FocusScreen(
-        animal: animal,
-        minutes: minutes.round(),
-        phrases: loadPhrases(),
-        mode: mode,
-        strict: strict));
+    final again = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => FocusScreen(
+                animal: animal,
+                minutes: minutes.round(),
+                phrases: loadPhrases(),
+                mode: mode,
+                strict: strict)));
+    if (mounted) setState(() {});
+    if (again == true && mounted) _start();
   }
 
   @override
@@ -304,23 +298,25 @@ class _HomeState extends State<HomeScreen> {
                 icon('➕', _more),
                 icon(store.dueCount > 0 ? '🧠${store.dueCount}' : '🧠', () => _go(const ReviewScreen())),
                 icon('💬', () => _go(PhrasesScreen(animal: animal))),
+                icon('🐾', () => _go(const PetsScreen())),
                 icon('⚙️', () => _go(const SettingsScreen())),
               ]),
-              GestureDetector(
-                onTap: _talk,
-                child: SizedBox(
-                height: 230,
-                child: Center(
-                  child: FittedBox(
-                    child: FocusAnimal(
-                        animal: animal,
-                        size: 200,
-                        mode: mode,
-                        acc: store.accIds(animal),
-                        emotion: mouth ? 'talk' : null),
+              PetStage(
+                ink: ink,
+                onStart: _start,
+                child: GestureDetector(
+                  onTap: _talk,
+                  child: Center(
+                    child: FittedBox(
+                      child: FocusAnimal(
+                          animal: animal,
+                          size: 200,
+                          mode: mode,
+                          acc: store.accIds(animal),
+                          emotion: mouth ? 'talk' : null),
+                    ),
                   ),
                 ),
-              ),
               ),
               SizedBox(
                   height: 70,
@@ -425,6 +421,65 @@ class _SettingsState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _backup() async {
+    final ctrl = TextEditingController();
+    await showDialog(
+        context: context,
+        builder: (c) => AlertDialog(
+              title: const Text('Copia de seguridad 💾'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('COPIAR guarda todo en el portapapeles (pégalo en tus notas). Para restaurar, pega el texto aquí y pulsa RESTAURAR.'),
+                TextField(controller: ctrl, maxLines: 3, decoration: const InputDecoration(hintText: 'Pega aquí para restaurar')),
+              ]),
+              actions: [
+                TextButton(
+                    onPressed: () async {
+                      final m = <String, dynamic>{};
+                      for (final k in store.p.getKeys()) {
+                        m[k] = store.p.get(k);
+                      }
+                      await Clipboard.setData(ClipboardData(text: jsonEncode(m)));
+                      if (c.mounted) Navigator.pop(c);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copiado ✅')));
+                      }
+                    },
+                    child: const Text('COPIAR')),
+                TextButton(
+                    onPressed: () async {
+                      try {
+                        final m = jsonDecode(ctrl.text.trim()) as Map<String, dynamic>;
+                        for (final e in m.entries) {
+                          final v = e.value;
+                          if (v is bool) {
+                            await store.p.setBool(e.key, v);
+                          } else if (v is int) {
+                            await store.p.setInt(e.key, v);
+                          } else if (v is double) {
+                            await store.p.setDouble(e.key, v);
+                          } else if (v is String) {
+                            await store.p.setString(e.key, v);
+                          } else if (v is List) {
+                            await store.p.setStringList(e.key, v.map((x) => x.toString()).toList());
+                          }
+                        }
+                        if (c.mounted) Navigator.pop(c);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Restaurado ✅ Cierra y abre la app')));
+                        }
+                      } catch (_) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(content: Text('Texto no válido')));
+                        }
+                      }
+                    },
+                    child: const Text('RESTAURAR')),
+              ],
+            ));
+  }
+
   Widget _remTile(int id, String name, String hint) {
     final v = store.rem(id);
     return ListTile(
@@ -448,6 +503,12 @@ class _SettingsState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes ⚙️')),
       body: ListView(children: [
+        ListTile(
+          leading: const Text('💾', style: TextStyle(fontSize: 24)),
+          title: const Text('Copia de seguridad'),
+          subtitle: const Text('Copiar o restaurar monedas, objetos y dibujos'),
+          onTap: _backup,
+        ),
         ListTile(
           leading: const Text('💾', style: TextStyle(fontSize: 26)),
           title: const Text('Copia de seguridad'),
@@ -837,6 +898,11 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   int get _pauseCost => pausesUsed < maxPauses ? 0 : 10;
 
   void _pause() {
+    if (widget.mode == 2 && pausesUsed >= 1) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('En modo dormir solo hay 1 pausa 😴')));
+      return;
+    }
     if (pausesUsed >= maxPauses + 3) {
       _abandon();
       return;
@@ -869,6 +935,8 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     if (done) return;
     done = true;
     _t?.cancel();
+    // vibración y aviso al terminar (no depende de la alarma programada)
+    _ch.invokeMethod('endBuzz', {'v': widget.mode != 2, 'mode': widget.mode});
     _ch.invokeMethod('cancelEnd');
     await _ch.invokeMethod('setBlocking', false);
     // ~1 moneda cada 3 min; las sesiones largas rinden algo más (constancia)
@@ -881,14 +949,29 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     const extra = '';
     if (!mounted) return;
     setState(() => emotion = 'happy');
-    await Future.delayed(const Duration(milliseconds: 3200));
+    if (widget.mode != 2) {
+      for (int i = 0; i < 4; i++) {
+        HapticFeedback.heavyImpact();
+        await Future.delayed(const Duration(milliseconds: 350));
+      }
+    }
+    await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted) return;
-    await showDialog(
+    final again = await showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
-            title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
-            content: Text('Has ganado $earned 🪙$extra')));
-    if (mounted) Navigator.pop(context);
+        builder: (c) => AlertDialog(
+              title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('Has ganado $earned 🪙$extra'),
+                if (loadPets().isNotEmpty) ComicBubble(text: petPhrase()),
+              ]),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Descansar')),
+                if (widget.mode != 2)
+                  FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Otra sesión 🚀')),
+              ],
+            ));
+    if (mounted) Navigator.pop(context, again == true);
   }
 
   Widget _banner(String t) => TweenAnimationBuilder<double>(
@@ -979,7 +1062,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final paused = pauseStart != null;
-    final left = maxPauses - pausesUsed;
+    final left = (widget.mode == 2 ? 1 : maxPauses) - pausesUsed;
     final scene = widget.mode == 2 ? 2 : effScene(widget.animal);
     final ink = inkFor(widget.animal, scene);
     return PopScope(
@@ -1043,8 +1126,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                         child: Text(paused
                             ? 'Reanudar'
                             : (left > 0
-                                ? 'Pausar 5 min ($left gratis)'
-                                : (pausesUsed < maxPauses + 3 ? 'Pausar 5 min (10 🪙)' : 'Pausar = abandonar')))),
+                                ? (widget.mode == 2 ? 'Pausar 5 min (1 sola vez)' : 'Pausar 5 min ($left gratis)')
+                                : (widget.mode == 2
+                                    ? 'Sin más pausas'
+                                    : (pausesUsed < maxPauses + 3 ? 'Pausar 5 min (10 🪙)' : 'Pausar = abandonar'))))),
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
                         onPressed: _addPhrase, icon: const Icon(Icons.chat_bubble_outline)),

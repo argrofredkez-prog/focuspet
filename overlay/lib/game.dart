@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'data.dart';
 import 'focus_animal.dart';
 
@@ -29,7 +30,9 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameState();
 }
 
-class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
+class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static const _mch = MethodChannel('focuspet/blocker');
+  bool musicOn = store.p.getBool('music_on') ?? true;
   static const packs = [
     [1, 4],
     [3, 12],
@@ -50,7 +53,30 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
   int best = store.p.getInt('bestm') ?? 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState st) {
+    if (st == AppLifecycleState.resumed) {
+      if (playing && musicOn) _mch.invokeMethod('musicResume');
+    } else {
+      _mch.invokeMethod('musicPause');
+    }
+  }
+
+  void _toggleMusic() {
+    setState(() => musicOn = !musicOn);
+    store.p.setBool('music_on', musicOn);
+    _mch.invokeMethod(musicOn && playing ? 'musicStart' : 'musicStop');
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _mch.invokeMethod('musicStop');
     _ticker.dispose();
     super.dispose();
   }
@@ -81,6 +107,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     bannerT = 1.4;
     runBest = 0;
     playing = true;
+    if (musicOn) _mch.invokeMethod('musicStart');
     _last = Duration.zero;
     _ticker.start();
     setState(() {});
@@ -287,6 +314,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
 
   void _finish() {
     _ticker.stop();
+    _mch.invokeMethod('musicStop');
     playing = false;
     final r = max(runBest, meters.floor());
     final isBest = r > best;
@@ -312,7 +340,12 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin {
     final ss = (timeLeft.ceil() % 60).toString().padLeft(2, '0');
     const st = TextStyle(fontSize: 18, fontWeight: FontWeight.w700);
     return Scaffold(
-      appBar: AppBar(title: const Text('Descanso 🎮')),
+      appBar: AppBar(title: const Text('Descanso 🎮'), actions: [
+        IconButton(
+            onPressed: _toggleMusic,
+            tooltip: 'Música',
+            icon: Text(musicOn ? '🎵' : '🔇', style: const TextStyle(fontSize: 22))),
+      ]),
       body: Column(children: [
         Padding(
           padding: const EdgeInsets.all(12),

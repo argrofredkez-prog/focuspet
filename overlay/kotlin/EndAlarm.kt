@@ -24,104 +24,127 @@ object EndAlarm {
         val show = PendingIntent.getActivity(
             ctx, 21, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
+        ctx.getSharedPreferences("focuspet_native", Context.MODE_PRIVATE).edit().putLong("sess_end", at).apply()
         am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pi)
     }
 
     fun cancel(ctx: Context) {
+        ctx.getSharedPreferences("focuspet_native", Context.MODE_PRIVATE).edit().putLong("sess_end", 0L).apply()
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         PendingIntent.getBroadcast(
             ctx, 20, Intent(ctx, EndReceiver::class.java),
             PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )?.let { am.cancel(it) }
     }
-}
 
-class EndReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent?) {
-        val app = context.applicationContext
-        val vib = intent?.getBooleanExtra("v", true) == true
-        val mode = intent?.getIntExtra("mode", 0) ?: 0
-        val pr = goAsync()
-        val wl = (app.getSystemService(Context.POWER_SERVICE) as PowerManager)
-            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "focuspet:end")
-        wl.acquire(30_000)
-        Thread {
-            try {
-                Dnd.disable(app)
-                waitDndOff(app)
-                notifyAlarm(
-                    app,
-                    if (mode == 2) "☀️ ¡Buenos días!" else "🎉 ¡Sesión terminada!",
-                    "Abre FOKUS ONIT! para cobrar tus monedas",
-                    vib
-                )
-                if (vib) {
-                    Thread.sleep(500)
-                    vibrateLong(app)
-                    Thread.sleep(1500)
-                }
-            } catch (e: Exception) {
-            } finally {
-                if (wl.isHeld) wl.release()
-                pr.finish()
-            }
-        }.start()
+    private fun vibrator(ctx: Context): Vibrator? = try {
+        if (Build.VERSION.SDK_INT >= 31) {
+            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+        } else {
+            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+    } catch (e: Throwable) {
+        null
     }
 
-    // espera (máx. 3 s) a que "No molestar" se haya apagado de verdad
-    private fun waitDndOff(ctx: Context) {
-        if (Build.VERSION.SDK_INT < 23) return
-        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        var i = 0
-        while (i < 15 && nm.currentInterruptionFilter != android.app.NotificationManager.INTERRUPTION_FILTER_ALL) {
-            Thread.sleep(200)
-            i++
+    // Vibra YA (antes de tocar "No molestar" o avisos): ~60 s como alarma
+    fun buzz(ctx: Context) {
+        val v = vibrator(ctx) ?: return
+        val t = LongArray(41) { if (it == 0) 0L else if (it % 2 == 1) 2500L else 500L }
+        var ok = false
+        if (Build.VERSION.SDK_INT >= 26) {
+            try {
+                val amp = IntArray(t.size) { if (it % 2 == 1) 255 else 0 }
+                val fx = if (v.hasAmplitudeControl()) VibrationEffect.createWaveform(t, amp, -1)
+                else VibrationEffect.createWaveform(t, -1)
+                val at = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+                v.vibrate(fx, at)
+                ok = true
+            } catch (e: Throwable) {
+            }
+            if (!ok) {
+                try {
+                    v.vibrate(VibrationEffect.createWaveform(t, -1))
+                    ok = true
+                } catch (e: Throwable) {
+                }
+            }
+        }
+        if (!ok) {
+            try {
+                v.vibrate(t, -1)
+            } catch (e: Throwable) {
+            }
         }
     }
 
-    // aviso tipo alarma: su canal vibra y se salta "No molestar"
-    private fun notifyAlarm(ctx: Context, title: String, text: String, vib: Boolean) {
+    // aviso tipo alarma (canal nuevo: los canales viejos no se pueden cambiar)
+    fun notifyEnd(ctx: Context, mode: Int, vib: Boolean) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val open = PendingIntent.getActivity(ctx, 11, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val pat = longArrayOf(0, 1500, 400, 1500, 400, 1500)
         val b: android.app.Notification.Builder
         if (Build.VERSION.SDK_INT >= 26) {
-            val ch = android.app.NotificationChannel("fin_alarma_v1", "Fin de sesión", android.app.NotificationManager.IMPORTANCE_HIGH)
-            ch.enableVibration(vib)
+            val ch = android.app.NotificationChannel("fin_alarma_v3", "Fin de sesión", android.app.NotificationManager.IMPORTANCE_HIGH)
+            ch.enableVibration(true)
             ch.vibrationPattern = pat
             try { ch.setBypassDnd(true) } catch (e: Exception) { }
             nm.createNotificationChannel(ch)
-            b = android.app.Notification.Builder(ctx, "fin_alarma_v1")
+            b = android.app.Notification.Builder(ctx, "fin_alarma_v3")
         } else {
-            @Suppress("DEPRECATION")
             b = android.app.Notification.Builder(ctx).setVibrate(pat).setPriority(android.app.Notification.PRIORITY_MAX)
         }
-        b.setSmallIcon(ctx.applicationInfo.icon).setContentTitle(title).setContentText(text)
+        b.setSmallIcon(ctx.applicationInfo.icon)
+            .setContentTitle(if (mode == 2) "☀️ ¡Buenos días!" else "🎉 ¡Sesión terminada!")
+            .setContentText("Abre FOKUS ONIT! para cobrar tus monedas")
             .setCategory(android.app.Notification.CATEGORY_ALARM).setContentIntent(open).setAutoCancel(true)
         nm.notify(20, b.build())
     }
 
-    // ~60 s a máxima potencia, como alarma (atraviesa "No molestar")
-    private fun vibrateLong(ctx: Context) {
-        val v: Vibrator = if (Build.VERSION.SDK_INT >= 31) {
-            (ctx.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            ctx.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    // espera (máx. 1,5 s) a que "No molestar" se haya apagado
+    private fun waitDndOff(ctx: Context) {
+        if (Build.VERSION.SDK_INT < 23) return
+        try {
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            var i = 0
+            while (i < 8 && nm.currentInterruptionFilter != android.app.NotificationManager.INTERRUPTION_FILTER_ALL) {
+                Thread.sleep(200)
+                i++
+            }
+        } catch (e: Throwable) {
         }
-        val t = LongArray(41) { if (it == 0) 0L else if (it % 2 == 1) 2500L else 500L } // 20 pulsos = 60 s
-        if (Build.VERSION.SDK_INT >= 26) {
-            val amp = IntArray(t.size) { if (it % 2 == 1) 255 else 0 }
-            val fx = if (v.hasAmplitudeControl()) VibrationEffect.createWaveform(t, amp, -1)
-            else VibrationEffect.createWaveform(t, -1)
-            val at = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-            @Suppress("DEPRECATION")
-            v.vibrate(fx, at)
-        } else {
-            @Suppress("DEPRECATION")
-            v.vibrate(t, -1)
-        }
+    }
+
+    // Cada paso va por separado: si uno falla, los demás se hacen igual
+    fun fire(ctx: Context, vib: Boolean, mode: Int) {
+        try { Dnd.disable(ctx) } catch (e: Throwable) { }
+        waitDndOff(ctx)
+        try { notifyEnd(ctx, mode, vib) } catch (e: Throwable) { }
+        if (vib) buzz(ctx)
+    }
+}
+
+class EndReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        val app = context.applicationContext
+        val vib = intent?.getBooleanExtra("v", true) != false
+        val mode = intent?.getIntExtra("mode", 0) ?: 0
+        // vibra al instante, sin esperar a nada
+        if (vib) EndAlarm.buzz(app)
+        val pr = goAsync()
+        val wl = (app.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "focuspet:end")
+        wl.acquire(20_000)
+        Thread {
+            try {
+                EndAlarm.fire(app, vib, mode)
+            } catch (e: Throwable) {
+            } finally {
+                if (wl.isHeld) wl.release()
+                pr.finish()
+            }
+        }.start()
     }
 }

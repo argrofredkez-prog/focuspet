@@ -11,18 +11,8 @@ class ShopScreen extends StatefulWidget {
   State<ShopScreen> createState() => _ShopState();
 }
 
-class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
+class _ShopState extends State<ShopScreen> {
   Animal get a => widget.animal;
-  late final AnimationController _eatC =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
-  Item? _eating;
-
-  @override
-  void dispose() {
-    _eatC.dispose();
-    super.dispose();
-  }
-
   void _msg(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
@@ -36,16 +26,6 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
     setState(() {});
   }
 
-  void _feed(Item it) {
-    if (store.inv(it.id) < 1 || _eating != null) return;
-    store.setInv(it.id, store.inv(it.id) - 1);
-    setState(() => _eating = it);
-    _eatC.forward(from: 0).then((_) {
-      if (mounted) setState(() => _eating = null);
-    });
-    _msg('¡Ñam! 😋');
-  }
-
   Widget _tile(Item it, String sub, List<Widget> actions) => ListTile(
         leading: SizedBox(width: 40, child: Center(child: itemIcon(it))),
         title: Text(it.name),
@@ -56,22 +36,20 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
   Widget _buyBtn(Item it) =>
       FilledButton.tonal(onPressed: () => _buy(it), child: Text('🪙 ${it.price}'));
 
-  Widget _foods() => ListView(children: [
-        for (final it in allItems().where((i) => i.kind == 'food' && (i.animal == a || i.animal == null)))
-          _tile(it, 'Tienes ${store.inv(it.id)}', [
-            _buyBtn(it),
-            const SizedBox(width: 6),
-            FilledButton(
-                onPressed: store.inv(it.id) > 0 && _eating == null ? () => _feed(it) : null,
-                child: const Text('Dar')),
-          ]),
-      ]);
-
   Widget _accs() {
     final worn = store.accIds(a);
-    return ListView(children: [
-      for (final it in allItems().where((i) => i.kind == 'acc'))
-        _tile(it, 'Zona: ${slotNames[it.slot] ?? it.slot}${worn.contains(it.id) ? ' · puesto' : ''}', [
+    const order = ['head', 'body', 'neck', 'eyes', 'face', 'back', 'hand', 'feet'];
+    final all = allItems().where((i) => i.kind == 'acc').toList();
+    final rows = <Widget>[];
+    for (final sl in order) {
+      final l = all.where((i) => i.slot == sl).toList();
+      if (l.isEmpty) continue;
+      rows.add(Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+          child: Text((slotNames[sl] ?? sl).toUpperCase(),
+              style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.grey))));
+      for (final it in l) {
+        rows.add(_tile(it, worn.contains(it.id) ? 'Puesto' : 'Tienda', [
           if (store.inv(it.id) < 1)
             _buyBtn(it)
           else if (worn.contains(it.id))
@@ -88,8 +66,10 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
                   setState(() {});
                 },
                 child: const Text('Poner')),
-        ]),
-    ]);
+        ]));
+      }
+    }
+    return ListView(children: rows);
   }
 
   Widget _scenes() {
@@ -129,7 +109,7 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
         ListTile(
           leading: const Text('✏️', style: TextStyle(fontSize: 30)),
           title: const Text('Crear un artículo con un dibujo'),
-          subtitle: const Text('Dibuja un complemento o una comida y aparecerá en la tienda'),
+          subtitle: const Text('Dibújalo y/o descríbelo (ej. «gorra azul con una A gigante»)'),
           onTap: () async {
             await Navigator.push(
                 context, MaterialPageRoute(builder: (_) => const DrawScreen()));
@@ -140,9 +120,7 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
           ListTile(
             leading: SizedBox(width: 40, child: Center(child: itemIcon(it))),
             title: Text(it.name),
-            subtitle: Text(it.kind == 'food'
-                ? 'Comida · 🪙 ${it.price}'
-                : 'Complemento (${slotNames[it.slot] ?? it.slot}) · 🪙 ${it.price}'),
+            subtitle: Text('Complemento (${slotNames[it.slot] ?? it.slot}) · 🪙 ${it.price}'),
             trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () {
@@ -154,12 +132,11 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 4,
+        length: 3,
         child: Scaffold(
           appBar: AppBar(
             title: Text('Tienda 🛒   🪙 ${store.coins}'),
             bottom: const TabBar(isScrollable: true, tabs: [
-              Tab(text: 'Comida'),
               Tab(text: 'Complementos'),
               Tab(text: 'Fondos'),
               Tab(text: 'Crear ✏️'),
@@ -171,20 +148,12 @@ class _ShopState extends State<ShopScreen> with SingleTickerProviderStateMixin {
               child: Row(children: [
                 Expanded(
                   child: FittedBox(
-                    child: AnimatedBuilder(
-                      animation: _eatC,
-                      builder: (_, __) => FocusAnimal(
-                          animal: a,
-                          size: 130,
-                          acc: store.accIds(a),
-                          eat: _eating == null ? -1 : _eatC.value,
-                          food: _eating),
-                    ),
+                    child: FocusAnimal(animal: a, size: 130, acc: store.accIds(a)),
                   ),
                 ),
               ]),
             ),
-            Expanded(child: TabBarView(children: [_foods(), _accs(), _scenes(), _create()])),
+            Expanded(child: TabBarView(children: [_accs(), _scenes(), _create()])),
           ]),
         ),
       );
