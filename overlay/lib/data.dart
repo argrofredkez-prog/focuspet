@@ -118,10 +118,16 @@ const catalog = <Item>[
   Item('s_desert', 'Desierto', '🌵', 70, 'scene'),
   Item('s_autumn', 'Bosque de otoño', '🍂', 75, 'scene'),
   Item('s_city', 'Ciudad de noche', '🌃', 90, 'scene'),
+  Item('s_lake', 'Lago sereno', '🦢', 80, 'scene'),
+  Item('s_lakesun', 'Lago al atardecer', '🌅', 85, 'scene'),
+  Item('s_beach', 'Playa soleada', '🏖️', 80, 'scene'),
+  Item('s_beachsun', 'Playa al atardecer', '🌇', 85, 'scene'),
+  Item('s_paradise', 'Paraíso tropical', '🦩', 90, 'scene'),
+  Item('s_lagoon', 'Laguna cristalina', '🐢', 90, 'scene'),
 ];
 
 
-const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10, 's_jungle': 11, 's_falls': 12, 's_meadow': 13, 's_balloons': 14, 's_farm': 15, 's_space': 16, 's_desert': 17, 's_autumn': 18, 's_city': 19};
+const sceneIdx = {'s_candy': 4, 's_cloud': 5, 's_galaxy': 6, 's_sea': 7, 's_mush': 8, 's_bakery': 9, 's_winter': 10, 's_jungle': 11, 's_falls': 12, 's_meadow': 13, 's_balloons': 14, 's_farm': 15, 's_space': 16, 's_desert': 17, 's_autumn': 18, 's_city': 19, 's_lake': 20, 's_lakesun': 21, 's_beach': 22, 's_beachsun': 23, 's_paradise': 24, 's_lagoon': 25};
 const slotNames = {
   'head': 'cabeza',
   'eyes': 'ojos',

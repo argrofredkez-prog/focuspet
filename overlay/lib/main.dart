@@ -325,7 +325,7 @@ class _HomeState extends State<HomeScreen> {
               Wrap(spacing: 8, children: [
                 for (final a in Animal.values)
                   ChoiceChip(
-                      label: Text(emojiOf[a]!, style: const TextStyle(fontSize: 26)),
+                      label: AnimalIcon(a, 26),
                       selected: a == animal,
                       onSelected: (_) {
                         setState(() => animal = a);

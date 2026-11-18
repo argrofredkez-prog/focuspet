@@ -150,152 +150,238 @@ class _PetPainter extends CustomPainter {
     ..color = c
     ..style = PaintingStyle.stroke
     ..strokeWidth = w
-    ..strokeCap = StrokeCap.round;
+    ..strokeCap = StrokeCap.round
+    ..strokeJoin = StrokeJoin.round;
+  Color _d(Color c, [double k = .42]) => Color.lerp(c, Colors.black, k)!;
+  Color _w(Color c, [double k = .5]) => Color.lerp(c, Colors.white, k)!;
 
-  void _face(Canvas c, Offset o, double s, {Color eye = ink}) {
+  // cuerpo redondo: degradado, contorno y brillo
+  void _blob(Canvas c, Rect r, Color base) {
+    c.drawOval(
+        r,
+        Paint()
+          ..shader = RadialGradient(
+                  center: const Alignment(-.35, -.45),
+                  colors: [_w(base, .55), base, _d(base, .2)],
+                  stops: const [0, .55, 1])
+              .createShader(r));
+    c.drawOval(r, _l(_d(base), 1.7));
+    c.drawOval(Rect.fromLTWH(r.left + r.width * .2, r.top + r.height * .1, r.width * .28, r.height * .15), _f(const Color(0x66FFFFFF)));
+  }
+
+  void _shape(Canvas c, Path p, Color base) {
+    final r = p.getBounds();
+    c.drawPath(
+        p,
+        Paint()
+          ..shader = LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [_w(base, .4), base, _d(base, .15)])
+              .createShader(r));
+    c.drawPath(p, _l(_d(base), 1.6));
+  }
+
+  Path _heart(Offset o, double r) => Path()
+    ..moveTo(o.dx, o.dy + r * .9)
+    ..cubicTo(o.dx - r * 1.6, o.dy - r * .2, o.dx - r * .7, o.dy - r * 1.2, o.dx, o.dy - r * .4)
+    ..cubicTo(o.dx + r * .7, o.dy - r * 1.2, o.dx + r * 1.6, o.dy - r * .2, o.dx, o.dy + r * .9)
+    ..close();
+
+  void _sparkle(Canvas c, Offset o, double r) {
+    c.drawPath(
+        Path()
+          ..moveTo(o.dx, o.dy - r)
+          ..quadraticBezierTo(o.dx, o.dy, o.dx + r, o.dy)
+          ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy + r)
+          ..quadraticBezierTo(o.dx, o.dy, o.dx - r, o.dy)
+          ..quadraticBezierTo(o.dx, o.dy, o.dx, o.dy - r)
+          ..close(),
+        _f(const Color(0xFFFFF3B0)));
+  }
+
+  // ojos grandes con doble brillo, mejillas y boquita «ω»
+  void _face(Canvas c, Offset o, double sep, {double s = 1}) {
     for (final d in [-1.0, 1.0]) {
-      c.drawOval(Rect.fromCenter(center: o + Offset(d * s, 0), width: 9, height: 11), _f(eye));
-      c.drawCircle(o + Offset(d * s - 1.5, -2.5), 2.2, _f(Colors.white));
-      c.drawCircle(o + Offset(d * (s + 8), 6), 4, _f(const Color(0x66FF6F9F)));
+      final e = o + Offset(d * sep, 0);
+      c.drawOval(Rect.fromCenter(center: e, width: 11 * s, height: 13 * s), _f(ink));
+      c.drawCircle(e + Offset(-1.6 * s, -2.8 * s), 3.1 * s, _f(Colors.white));
+      c.drawCircle(e + Offset(1.8 * s, 2.6 * s), 1.5 * s, _f(const Color(0xCCFFFFFF)));
+      final ch = o + Offset(d * (sep + 9 * s), 7 * s);
+      c.drawOval(
+          Rect.fromCenter(center: ch, width: 9 * s, height: 6 * s),
+          Paint()
+            ..shader = const RadialGradient(colors: [Color(0xAAFF6F9F), Color(0x00FF6F9F)])
+                .createShader(Rect.fromCenter(center: ch, width: 9 * s, height: 6 * s)));
     }
-    c.drawArc(Rect.fromCenter(center: o + const Offset(0, 6), width: 8, height: 6), 0.2, pi - 0.4, false,
-        _l(ink, 1.5));
+    for (final d in [-1.0, 1.0]) {
+      c.drawArc(Rect.fromCenter(center: o + Offset(d * 2.2 * s, 6.5 * s), width: 4.4 * s, height: 4 * s), 0, pi, false, _l(ink, 1.4));
+    }
   }
 
   @override
   void paint(Canvas c, Size size) {
     c.save();
     c.scale(size.width / 100, size.height / 100);
-    final dk = Color.lerp(col, Colors.black, .3)!;
-    final lt = Color.lerp(col, Colors.white, .5)!;
-    c.drawOval(Rect.fromCenter(center: const Offset(50, 95), width: 44, height: 7), _f(const Color(0x22000000)));
+    final dk = _d(col, .3);
+    final lt = _w(col, .55);
+    c.drawOval(Rect.fromCenter(center: const Offset(50, 95), width: 46, height: 7), _f(const Color(0x22000000)));
     final hop = sin(t * 2 * pi).abs();
     c.translate(0, -8 * hop);
     switch (kind) {
       case 'mariposa':
-        final fm = 0.3 + 0.7 * sin(t * 4 * pi).abs();
+        final fm = .35 + .65 * sin(t * 4 * pi).abs();
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50, 56);
+          c.translate(50, 54);
           c.scale(d * fm, 1);
           final up = Path()
-            ..moveTo(0, -6)
-            ..cubicTo(32, -54, 62, -20, 40, 8)
-            ..cubicTo(26, 14, 10, 6, 0, 0)
+            ..moveTo(0, -4)
+            ..cubicTo(30, -58, 70, -26, 44, 10)
+            ..cubicTo(30, 16, 10, 6, 0, 2)
             ..close();
           final lo = Path()
-            ..moveTo(0, 0)
-            ..cubicTo(30, 6, 52, 30, 34, 46)
-            ..cubicTo(18, 54, 4, 32, 0, 10)
+            ..moveTo(0, 4)
+            ..cubicTo(34, 6, 56, 34, 36, 50)
+            ..cubicTo(20, 58, 4, 34, 0, 12)
             ..close();
-          c.drawPath(up, _f(col));
-          c.drawPath(lo, _f(lt));
-          c.drawPath(up, _l(dk, 1.6));
-          c.drawPath(lo, _l(dk, 1.6));
-          c.drawCircle(const Offset(30, -22), 6, _f(const Color(0xCCFFFFFF)));
-          c.drawCircle(const Offset(22, 30), 4, _f(col));
+          _shape(c, up, col);
+          _shape(c, lo, _w(col, .4));
+          c.drawCircle(const Offset(34, -20), 7, _f(const Color(0xCCFFFFFF)));
+          c.drawCircle(const Offset(34, -20), 3.4, _f(_w(col, .2)));
+          c.drawCircle(const Offset(24, 34), 4.5, _f(const Color(0xB3FFFFFF)));
+          c.drawPath(Path()..moveTo(2, 0)..quadraticBezierTo(22, -12, 36, -30), _l(_d(col, .25).withAlpha(120), 1));
           c.restore();
         }
-        c.drawOval(Rect.fromCenter(center: const Offset(50, 62), width: 9, height: 38), _f(dk));
-        c.drawCircle(const Offset(50, 38), 10, _f(lt));
-        c.drawPath(Path()..moveTo(47, 30)..quadraticBezierTo(42, 16, 36, 14), _l(dk, 2));
-        c.drawPath(Path()..moveTo(53, 30)..quadraticBezierTo(58, 16, 64, 14), _l(dk, 2));
-        c.drawCircle(const Offset(36, 14), 2.4, _f(dk));
-        c.drawCircle(const Offset(64, 14), 2.4, _f(dk));
-        for (final d in [-1.0, 1.0]) {
-          c.drawCircle(Offset(50 + d * 4, 38), 2.2, _f(ink));
-          c.drawCircle(Offset(50 + d * 4 - .8, 37), .8, _f(Colors.white));
-          c.drawCircle(Offset(50 + d * 7.5, 42), 2, _f(const Color(0x66FF6F9F)));
-        }
-        c.drawArc(Rect.fromCenter(center: const Offset(50, 42), width: 5, height: 4), 0.2, pi - 0.4, false, _l(ink, 1));
+        _shape(c, Path()..addOval(Rect.fromCenter(center: const Offset(50, 64), width: 11, height: 40)), _d(col, .3));
+        c.drawPath(Path()..moveTo(44, 31)..quadraticBezierTo(38, 14, 32, 10), _l(_d(col), 1.8));
+        c.drawPath(Path()..moveTo(56, 31)..quadraticBezierTo(62, 14, 68, 10), _l(_d(col), 1.8));
+        c.drawPath(_heart(const Offset(31, 9), 3.2), _f(const Color(0xFFFF6F9F)));
+        c.drawPath(_heart(const Offset(69, 9), 3.2), _f(const Color(0xFFFF6F9F)));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 40), width: 28, height: 26), _w(col, .7));
+        _face(c, const Offset(50, 41), 5.6, s: .85);
         break;
       case 'buho':
-        c.drawPath(Path()..moveTo(26, 26)..lineTo(32, 6)..lineTo(46, 22)..close(), _f(dk));
-        c.drawPath(Path()..moveTo(74, 26)..lineTo(68, 6)..lineTo(54, 22)..close(), _f(dk));
-        c.drawOval(Rect.fromCenter(center: const Offset(50, 58), width: 64, height: 70), _f(col));
-        c.drawOval(Rect.fromCenter(center: const Offset(50, 70), width: 38, height: 44), _f(lt));
-        for (final y in [62.0, 72.0, 82.0]) {
-          c.drawArc(Rect.fromCenter(center: Offset(50, y), width: 14, height: 8), 0.3, pi - 0.6, false, _l(dk.withAlpha(120), 1.4));
-        }
-        final fl = 0.18 * sin(t * 2 * pi);
+        _shape(c, Path()..moveTo(26, 28)..lineTo(30, 8)..lineTo(46, 24)..close(), _d(col, .12));
+        _shape(c, Path()..moveTo(74, 28)..lineTo(70, 8)..lineTo(54, 24)..close(), _d(col, .12));
+        final fl = .18 * sin(t * 2 * pi);
         for (final d in [-1.0, 1.0]) {
           c.save();
           c.translate(50 + d * 33, 62);
-          c.rotate(d * (0.15 + fl));
-          c.drawOval(Rect.fromCenter(center: Offset.zero, width: 15, height: 40), _f(dk));
+          c.rotate(d * (.15 + fl));
+          _blob(c, Rect.fromCenter(center: Offset.zero, width: 17, height: 42), _d(col, .18));
           c.restore();
-          c.drawCircle(Offset(50 + d * 12, 40), 12.5, _f(Colors.white));
-          c.drawCircle(Offset(50 + d * 12, 41), 6, _f(ink));
-          c.drawCircle(Offset(50 + d * 12 - 2, 38.5), 2.2, _f(Colors.white));
-          c.drawCircle(Offset(50 + d * 28, 52), 3.6, _f(const Color(0x66FF6F9F)));
         }
-        c.drawPath(Path()..moveTo(50, 46)..lineTo(44.5, 54)..lineTo(55.5, 54)..close(), _f(const Color(0xFFFF9F43)));
-        c.drawLine(const Offset(42, 94), const Offset(42, 90), _l(const Color(0xFFFF9F43), 3));
-        c.drawLine(const Offset(58, 94), const Offset(58, 90), _l(const Color(0xFFFF9F43), 3));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 58), width: 66, height: 72), col);
+        c.drawOval(Rect.fromCenter(center: const Offset(50, 73), width: 38, height: 42), _f(_w(col, .65)));
+        for (final y in [66.0, 75.0, 84.0]) {
+          c.drawArc(Rect.fromCenter(center: Offset(50, y), width: 14, height: 8), .3, pi - .6, false, _l(_d(col, .2).withAlpha(110), 1.4));
+        }
+        for (final d in [-1.0, 1.0]) {
+          final e = Offset(50 + d * 13, 44);
+          c.drawCircle(e, 13.5, _f(_w(col, .8)));
+          c.drawCircle(e, 13.5, _l(_d(col), 1.4));
+          c.drawCircle(e.translate(0, 1), 7.4, _f(ink));
+          c.drawCircle(e.translate(-2.4, -2), 2.9, _f(Colors.white));
+          c.drawCircle(e.translate(2.4, 3.4), 1.4, _f(Colors.white));
+          c.drawCircle(Offset(50 + d * 29, 56), 3.6, _f(const Color(0x66FF6F9F)));
+        }
+        _shape(c, Path()..moveTo(50, 50)..lineTo(45, 57)..lineTo(55, 57)..close(), const Color(0xFFFF9F43));
+        c.drawPath(Path()..moveTo(50, 11)..lineTo(80, 22)..lineTo(50, 33)..lineTo(20, 22)..close(), _f(ink));
+        c.drawPath(Path()..moveTo(36, 28)..lineTo(36, 35)..quadraticBezierTo(50, 41, 64, 35)..lineTo(64, 28)..close(), _f(const Color(0xFF3B3355)));
+        c.drawLine(const Offset(76, 23), const Offset(79, 38), _l(const Color(0xFFFFD84D), 1.6));
+        c.drawCircle(const Offset(79, 40), 2.6, _f(const Color(0xFFFFD84D)));
+        c.drawLine(const Offset(42, 94), const Offset(42, 91), _l(const Color(0xFFFF9F43), 3));
+        c.drawLine(const Offset(58, 94), const Offset(58, 91), _l(const Color(0xFFFF9F43), 3));
         break;
       case 'abeja':
-        final fw = 0.6 + 0.4 * sin(t * 6 * pi).abs();
+        final fw = .6 + .4 * sin(t * 6 * pi).abs();
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50 + d * 14, 34);
-          c.rotate(d * 0.5);
-          c.drawOval(Rect.fromCenter(center: Offset(0, -9 * fw), width: 18, height: 26 * fw), _f(const Color(0xCCFFFFFF)));
-          c.drawOval(Rect.fromCenter(center: Offset(0, -9 * fw), width: 18, height: 26 * fw), _l(const Color(0xFFB9D8F0), 1));
+          c.translate(50 + d * 15, 34);
+          c.rotate(d * .55);
+          _shape(c, Path()..addOval(Rect.fromCenter(center: Offset(0, -10 * fw), width: 22, height: 30 * fw)), const Color(0xFFD6EFFF));
           c.restore();
         }
-        c.drawPath(Path()..moveTo(40, 30)..quadraticBezierTo(34, 12, 26, 14), _l(ink, 2));
-        c.drawPath(Path()..moveTo(60, 30)..quadraticBezierTo(66, 12, 74, 14), _l(ink, 2));
-        c.drawCircle(const Offset(26, 14), 2.6, _f(ink));
-        c.drawCircle(const Offset(74, 14), 2.6, _f(ink));
-        final bd = Rect.fromCenter(center: const Offset(50, 62), width: 66, height: 56);
-        c.drawOval(bd, _f(col));
+        c.drawPath(Path()..moveTo(41, 31)..quadraticBezierTo(35, 12, 27, 14), _l(ink, 2));
+        c.drawPath(Path()..moveTo(59, 31)..quadraticBezierTo(65, 12, 73, 14), _l(ink, 2));
+        c.drawPath(_heart(const Offset(26, 13), 3.4), _f(const Color(0xFFFF6F9F)));
+        c.drawPath(_heart(const Offset(74, 13), 3.4), _f(const Color(0xFFFF6F9F)));
+        final bd = Rect.fromCenter(center: const Offset(50, 64), width: 70, height: 60);
+        _blob(c, bd, col);
         c.save();
         c.clipPath(Path()..addOval(bd));
-        for (final y in [66.0, 78.0]) {
-          c.drawRect(Rect.fromLTWH(10, y, 80, 6), _f(ink));
+        for (final y in [70.0, 82.0]) {
+          c.drawPath(Path()..moveTo(10, y)..quadraticBezierTo(50, y + 7, 90, y)..lineTo(90, y + 7)..quadraticBezierTo(50, y + 14, 10, y + 7)..close(), _f(const Color(0xFF4A3B5C)));
         }
         c.restore();
-        c.drawPath(Path()..moveTo(50, 92)..lineTo(46, 99)..lineTo(54, 99)..close(), _f(ink));
-        _face(c, const Offset(50, 52), 11);
+        c.drawOval(bd, _l(_d(col), 1.7));
+        c.drawPath(Path()..moveTo(50, 93)..lineTo(46, 100)..lineTo(54, 100)..close(), _f(ink));
+        _face(c, const Offset(50, 56), 12);
         break;
       case 'pajarito':
-        final wf = 0.3 * sin(t * 4 * pi);
-        c.drawPath(Path()..moveTo(26, 56)..lineTo(4, 46)..lineTo(8, 58)..lineTo(2, 66)..lineTo(28, 66)..close(), _f(dk));
-        c.drawOval(Rect.fromCenter(center: const Offset(46, 62), width: 60, height: 46), _f(col));
-        c.drawOval(Rect.fromCenter(center: const Offset(48, 72), width: 36, height: 22), _f(lt));
+        final wf = .3 * sin(t * 4 * pi);
+        _shape(c, Path()..moveTo(26, 56)..lineTo(4, 46)..lineTo(8, 58)..lineTo(2, 66)..lineTo(28, 66)..close(), dk);
+        _blob(c, Rect.fromCenter(center: const Offset(46, 62), width: 62, height: 48), col);
+        c.drawOval(Rect.fromCenter(center: const Offset(48, 73), width: 38, height: 22), _f(_w(col, .6)));
         c.save();
         c.translate(40, 58);
-        c.rotate(-0.2 - wf);
-        c.drawOval(Rect.fromCenter(center: const Offset(-4, 4), width: 32, height: 18), _f(dk));
+        c.rotate(-.2 - wf);
+        _blob(c, Rect.fromCenter(center: const Offset(-4, 4), width: 32, height: 19), dk);
         c.restore();
-        c.drawCircle(const Offset(68, 42), 17, _f(col));
-        c.drawPath(Path()..moveTo(82, 40)..lineTo(95, 45)..lineTo(82, 49)..close(), _f(const Color(0xFFFF9F43)));
-        c.drawCircle(const Offset(72, 38), 3.6, _f(ink));
-        c.drawCircle(const Offset(73, 36.8), 1.2, _f(Colors.white));
-        c.drawCircle(const Offset(66, 48), 3.6, _f(const Color(0x66FF6F9F)));
-        c.drawPath(Path()..moveTo(64, 27)..quadraticBezierTo(62, 16, 68, 18), _l(dk, 2.4));
-        c.drawLine(const Offset(40, 84), const Offset(40, 91), _l(const Color(0xFFFF9F43), 2.6));
-        c.drawLine(const Offset(54, 84), const Offset(54, 91), _l(const Color(0xFFFF9F43), 2.6));
+        _blob(c, Rect.fromCenter(center: const Offset(68, 42), width: 36, height: 34), col);
+        _shape(c, Path()..moveTo(83, 40)..lineTo(96, 45)..lineTo(83, 50)..close(), const Color(0xFFFF9F43));
+        c.drawOval(Rect.fromCenter(center: const Offset(73, 40), width: 9, height: 11), _f(ink));
+        c.drawCircle(const Offset(71.6, 37.6), 2.8, _f(Colors.white));
+        c.drawCircle(const Offset(74.6, 42.4), 1.3, _f(Colors.white));
+        c.drawOval(Rect.fromCenter(center: const Offset(66, 49), width: 9, height: 6), _f(const Color(0x77FF6F9F)));
+        for (final a in [-.5, 0.0, .5]) {
+          c.drawPath(Path()..moveTo(66, 26)..quadraticBezierTo(66 + a * 16, 14, 66 + a * 22, 18), _l(dk, 2.2));
+        }
+        for (int k = 0; k < 5; k++) {
+          c.drawCircle(Offset(56 + 4.6 * cos(k * 1.2566 - 1.2), 24 + 4.6 * sin(k * 1.2566 - 1.2)), 2.8, _f(const Color(0xFFFF8FB8)));
+        }
+        c.drawCircle(const Offset(56, 24), 2, _f(const Color(0xFFFFE066)));
+        c.drawLine(const Offset(40, 84), const Offset(40, 92), _l(const Color(0xFFFF9F43), 2.6));
+        c.drawLine(const Offset(54, 84), const Offset(54, 92), _l(const Color(0xFFFF9F43), 2.6));
         break;
-      default: // pollito
-        c.drawPath(Path()..moveTo(46, 30)..quadraticBezierTo(44, 18, 40, 20), _l(dk, 2.6));
-        c.drawPath(Path()..moveTo(50, 29)..quadraticBezierTo(50, 14, 52, 14), _l(dk, 2.6));
-        c.drawPath(Path()..moveTo(54, 30)..quadraticBezierTo(58, 18, 62, 20), _l(dk, 2.6));
-        c.drawCircle(const Offset(50, 60), 33, _f(col));
-        final fl2 = 0.2 * sin(t * 2 * pi);
+      default: // pollito en su huevo
+        c.drawPath(Path()..moveTo(46, 25)..quadraticBezierTo(44, 12, 40, 14), _l(dk, 2.6));
+        c.drawPath(Path()..moveTo(50, 24)..quadraticBezierTo(50, 8, 53, 9), _l(dk, 2.6));
+        c.drawPath(Path()..moveTo(54, 25)..quadraticBezierTo(58, 12, 62, 14), _l(dk, 2.6));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 54), width: 64, height: 62), col);
+        final fl2 = .2 * sin(t * 2 * pi);
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50 + d * 31, 66);
-          c.rotate(d * (0.3 + fl2));
-          c.drawOval(Rect.fromCenter(center: Offset.zero, width: 14, height: 26), _f(dk));
+          c.translate(50 + d * 32, 58);
+          c.rotate(d * (.3 + fl2));
+          _blob(c, Rect.fromCenter(center: Offset.zero, width: 14, height: 26), dk);
           c.restore();
         }
-        c.drawPath(Path()..moveTo(50, 54)..lineTo(44, 60)..lineTo(56, 60)..close(), _f(const Color(0xFFFF9F43)));
-        _face(c, const Offset(50, 48), 12);
-        c.drawLine(const Offset(42, 94), const Offset(42, 90), _l(const Color(0xFFFF9F43), 3));
-        c.drawLine(const Offset(58, 94), const Offset(58, 90), _l(const Color(0xFFFF9F43), 3));
+        _shape(c, Path()..moveTo(50, 52)..lineTo(44, 58)..lineTo(56, 58)..close(), const Color(0xFFFF9F43));
+        _face(c, const Offset(50, 46), 12);
+        final shell = Path()
+          ..moveTo(12, 66)
+          ..lineTo(21, 74)
+          ..lineTo(30, 65)
+          ..lineTo(39, 74)
+          ..lineTo(48, 65)
+          ..lineTo(57, 74)
+          ..lineTo(66, 65)
+          ..lineTo(75, 74)
+          ..lineTo(84, 65)
+          ..lineTo(88, 66)
+          ..lineTo(86, 90)
+          ..quadraticBezierTo(50, 100, 14, 90)
+          ..close();
+        c.drawPath(shell, _f(const Color(0xFFFFFBF2)));
+        c.drawPath(shell, _l(const Color(0xFFD9C9B0), 1.6));
+        c.drawPath(Path()..moveTo(70, 18)..lineTo(78, 12)..lineTo(78, 26)..close(), _f(const Color(0xFFFF8FB8)));
+        c.drawPath(Path()..moveTo(86, 18)..lineTo(78, 12)..lineTo(78, 26)..close(), _f(const Color(0xFFFF8FB8)));
+        c.drawCircle(const Offset(78, 19), 3, _f(const Color(0xFFE8587F)));
         break;
     }
+    final k1 = .6 + .4 * sin(t * 4 * pi);
+    final k2 = .6 + .4 * sin(t * 4 * pi + 2);
+    _sparkle(c, Offset(12, 22 + 3 * sin(t * 2 * pi)), 4.2 * k1);
+    _sparkle(c, Offset(90, 30 - 3 * sin(t * 2 * pi)), 3.4 * k2);
     c.restore();
   }
 
@@ -411,8 +497,8 @@ class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin
     final a = 2 * pi * (dir * _c.value + i / max(1, n));
     final rx = min(w / 2 - 30, 150.0) * (i.isEven ? 1.0 : 0.82);
     final ry = 92.0 * (i.isEven ? 0.85 : 1.0);
-    var x = w / 2 + rx * cos(a) - 26;
-    var y = 115 + ry * sin(a) * 0.95 - 26 + 6 * sin(2 * pi * (3 * _c.value + i));
+    var x = w / 2 + rx * cos(a) - 30;
+    var y = 115 + ry * sin(a) * 0.95 - 30 + 6 * sin(2 * pi * (3 * _c.value + i));
     if (shaking && who?.id == p.id) {
       x += 3.5 * sin(_c.value * 2 * pi * 120);
       y += 2.5 * cos(_c.value * 2 * pi * 140);
@@ -422,7 +508,7 @@ class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin
       top: y,
       child: GestureDetector(
         onTap: () => _speak(p),
-        child: PetSprite(kind: p.kind, color: Color(p.color), size: 52),
+        child: PetSprite(kind: p.kind, color: Color(p.color), size: 60),
       ),
     );
   }

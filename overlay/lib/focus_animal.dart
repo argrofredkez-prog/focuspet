@@ -723,9 +723,20 @@ class _AnimalPainter extends CustomPainter {
         break;
       case Animal.unicornio:
         _both(c, () {
-          c.drawCircle(const Offset(30, 17), 8, _f(p.base));
-          c.drawCircle(const Offset(30, 17), 8, _l(p.line, 1.1));
-          c.drawCircle(const Offset(30, 17), 4.5, _f(const Color(0xFFFFC2DB)));
+          final ear = Path()
+            ..moveTo(31, 24)
+            ..quadraticBezierTo(24, 12, 29, 1)
+            ..quadraticBezierTo(38, 10, 41, 21)
+            ..close();
+          c.drawPath(ear, _f(p.base));
+          c.drawPath(ear, _l(p.line, 1.1));
+          c.drawPath(
+              Path()
+                ..moveTo(32, 20)
+                ..quadraticBezierTo(28, 12, 30, 6)
+                ..quadraticBezierTo(35, 12, 37, 19)
+                ..close(),
+              _f(const Color(0xFFFFC2DB)));
         });
         break;
       case Animal.tigre:
@@ -757,39 +768,19 @@ class _AnimalPainter extends CustomPainter {
     c.drawOval(r, _l(p.line, 1.3));
     if (a == Animal.unicornio) {
       final h = Path()
-        ..moveTo(44.5, 14)
-        ..cubicTo(45, 7, 48, 1, 50, -8)
-        ..cubicTo(52, 1, 55, 7, 55.5, 14)
+        ..moveTo(45, 14)
+        ..cubicTo(46, 7, 48.5, 0, 50, -11)
+        ..cubicTo(51.5, 0, 54, 7, 55, 14)
         ..close();
-      c.drawPath(h, _g(h.getBounds(), const Color(0xFFFFFFFF), const Color(0xFFFFD6EA)));
+      c.drawPath(h, _g(h.getBounds(), const Color(0xFFFFFBEA), const Color(0xFFE9D59A)));
       c.save();
       c.clipPath(h);
-      const hs = [Color(0xFFFFA8CC), Color(0xFFFFE27A), Color(0xFF9AD1FF), Color(0xFFC9B3F5)];
-      for (int i = 0; i < 7; i++) {
-        final y0 = 13.0 - i * 3.0;
-        c.drawLine(Offset(43, y0 + 2.5), Offset(57, y0 - 2.5), _l(hs[i % 4], 1.9));
+      for (int i = 0; i < 6; i++) {
+        final y0 = 13.0 - i * 3.6;
+        c.drawLine(Offset(43, y0 + 3), Offset(57, y0 - 3), _l(const Color(0x66B8964A), 1.0));
       }
       c.restore();
-      c.drawPath(h, _l(p.line, 1.1));
-      c.drawPath(_spark(const Offset(50, -10.5), 2.6), _f(const Color(0xFFFFE27A)));
-      const fr = [Color(0xFFFFA8CC), Color(0xFFFFE27A), Color(0xFF9AD1FF), Color(0xFFC9B3F5), Color(0xFFFFA8CC)];
-      for (int i = 0; i < 5; i++) {
-        c.drawArc(Rect.fromCenter(center: Offset(34.0 + i * 8, 16), width: 11, height: 10), pi, pi, false, _l(p.line, 4.8));
-      }
-      for (int i = 0; i < 5; i++) {
-        c.drawArc(Rect.fromCenter(center: Offset(34.0 + i * 8, 16), width: 11, height: 10), pi, pi, false, _l(fr[i], 3.4));
-      }
-      _both(c, () {
-        final lk = Path()
-          ..moveTo(32, 13)
-          ..quadraticBezierTo(21, 26, 27, 41);
-        c.drawPath(lk, _l(p.line, 5.6));
-        c.drawPath(lk, _l(const Color(0xFFFFA8CC), 4));
-        final lk2 = Path()
-          ..moveTo(34, 13)
-          ..quadraticBezierTo(26, 26, 31, 38);
-        c.drawPath(lk2, _l(const Color(0xFF9AD1FF), 2.6));
-      });
+      c.drawPath(h, _l(const Color(0xFFB8964A), 1.0));
     }
     if (a == Animal.tigre) {
       final st = _l(const Color(0xFF3A2A1E), 2.4);
@@ -826,10 +817,10 @@ class _AnimalPainter extends CustomPainter {
         break;
       case Animal.unicornio:
         {
-          final r = Rect.fromCenter(center: const Offset(50, 43), width: 18, height: 12);
-          c.drawOval(r, _f(const Color(0xFFFFE4EF)));
+          final r = Rect.fromCenter(center: const Offset(50, 43.5), width: 22, height: 14);
+          c.drawOval(r, _g(r, const Color(0xFFFFF1F6), const Color(0xFFF3DCE8)));
           c.drawOval(r, _l(p.line, 0.9));
-          _both(c, () => c.drawCircle(const Offset(46.5, 43), 1.1, _f(p.line)));
+          _both(c, () => c.drawOval(Rect.fromCenter(center: const Offset(45.5, 42.5), width: 2.2, height: 3.4), _f(p.line)));
         }
         break;
       case Animal.tigre:

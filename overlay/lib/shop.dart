@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'animal_background.dart';
 import 'data.dart';
 import 'draw.dart';
 import 'focus_animal.dart';
@@ -27,7 +28,9 @@ class _ShopState extends State<ShopScreen> {
   }
 
   Widget _tile(Item it, String sub, List<Widget> actions) => ListTile(
-        leading: SizedBox(width: 40, child: Center(child: itemIcon(it))),
+        leading: it.kind == 'scene'
+            ? ScenePreview(animal: a, scene: sceneIdx[it.id] ?? 4)
+            : SizedBox(width: 40, child: Center(child: itemIcon(it))),
         title: Text(it.name),
         subtitle: Text(sub),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: actions),
