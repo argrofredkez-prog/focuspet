@@ -298,10 +298,11 @@ class _HomeState extends State<HomeScreen> {
                 icon('➕', _more),
                 icon(store.dueCount > 0 ? '🧠${store.dueCount}' : '🧠', () => _go(const ReviewScreen())),
                 icon('💬', () => _go(PhrasesScreen(animal: animal))),
-                icon('🐾', () => _go(const PetsScreen())),
+                icon('🐾', () => _go(PetsScreen(animal: animal))),
                 icon('⚙️', () => _go(const SettingsScreen())),
               ]),
               PetStage(
+                animal: animal,
                 ink: ink,
                 onStart: _start,
                 child: GestureDetector(
@@ -963,7 +964,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
               title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
               content: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text('Has ganado $earned 🪙$extra'),
-                if (loadPets().isNotEmpty) ComicBubble(text: petPhrase()),
+                if (loadPet(widget.animal) != null) ComicBubble(text: petPhrase()),
               ]),
               actions: [
                 TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Descansar')),

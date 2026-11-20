@@ -70,7 +70,11 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, 
   void _toggleMusic() {
     setState(() => musicOn = !musicOn);
     store.p.setBool('music_on', musicOn);
-    _mch.invokeMethod(musicOn && playing ? 'musicStart' : 'musicStop');
+    if (musicOn && playing) {
+      _mch.invokeMethod('musicStart', level);
+    } else {
+      _mch.invokeMethod('musicStop');
+    }
   }
 
   @override
@@ -107,7 +111,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, 
     bannerT = 1.4;
     runBest = 0;
     playing = true;
-    if (musicOn) _mch.invokeMethod('musicStart');
+    if (musicOn) _mch.invokeMethod('musicStart', 0);
     _last = Duration.zero;
     _ticker.start();
     setState(() {});
@@ -227,6 +231,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, 
     runBest = max(runBest, meters.floor());
     meters = cp * 100.0; // vuelves al último punto de control (niveles 0, 3, 6, 9...)
     level = cp;
+    if (musicOn) _mch.invokeMethod('musicLevel', level);
     speed = min(230.0 + meters * 0.42, 680.0);
     holding = false;
     stumble = _fallT;
@@ -262,6 +267,7 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, 
       meters += speed * dt / 50;
       level = meters ~/ 100;
       if (level > before) {
+        if (musicOn) _mch.invokeMethod('musicLevel', level);
         bannerT = 1.8;
         if (level % 3 == 0) {
           cp = level;

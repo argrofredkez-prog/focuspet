@@ -104,7 +104,8 @@ class MainActivity : FlutterActivity() {
                         Thread { EndAlarm.fire(applicationContext, v, md) }.start()
                         result.success(null)
                     }
-                    "musicStart" -> { ChipMusic.start(); result.success(null) }
+                    "musicStart" -> { ChipMusic.start((call.arguments as? Int) ?: 0); result.success(null) }
+                    "musicLevel" -> { ChipMusic.setLevel((call.arguments as? Int) ?: 0); result.success(null) }
                     "musicStop" -> { ChipMusic.stop(); result.success(null) }
                     "musicPause" -> { ChipMusic.pause(); result.success(null) }
                     "musicResume" -> { ChipMusic.resume(); result.success(null) }

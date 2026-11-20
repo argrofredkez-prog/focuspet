@@ -2,89 +2,109 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'data.dart';
+import 'focus_animal.dart';
 import 'widgets.dart';
 
-const petKinds = ['mariposa', 'buho', 'abeja', 'pajarito', 'pollito'];
+const petKinds = ['mariposa', 'buho', 'abeja', 'fenix'];
 const petLabels = {
   'mariposa': 'Mariposa 🦋',
   'buho': 'Búho 🦉',
   'abeja': 'Abeja 🐝',
-  'pajarito': 'Pajarito 🐦',
-  'pollito': 'Pollito 🐥',
+  'fenix': 'Fénix 🔥',
 };
 const petDefaultColor = {
   'mariposa': 0xFFB59CFF,
-  'buho': 0xFFB08968,
+  'buho': 0xFF6C8EBF,
   'abeja': 0xFFFFD84D,
-  'pajarito': 0xFF4FC3F7,
-  'pollito': 0xFFFFE066,
+  'fenix': 0xFFFF6B3D,
 };
 const petDefaultName = {
   'mariposa': 'Mariposi',
   'buho': 'Búho',
   'abeja': 'Abejita',
-  'pajarito': 'Pío',
-  'pollito': 'Pollito',
+  'fenix': 'Fénix',
 };
 const petPalette = [
   0xFFE8445A, 0xFFFF8A3D, 0xFFFFD84D, 0xFFA6E34F, 0xFF6BCB77, 0xFF2FB5A0, 0xFF4FC3F7, 0xFF3F9BE0,
   0xFF8E5BD9, 0xFFB59CFF, 0xFFFF8FB8, 0xFFFFB6D5, 0xFFB08968, 0xFF8B5A3C, 0xFFF5E6C8, 0xFFFFFFFF,
   0xFFBFC5D2, 0xFF6B7280, 0xFF2B2140, 0xFFFFC9A8,
 ];
+const animalLabels = {
+  Animal.cerdo: 'Cerdito 🐷',
+  Animal.unicornio: 'Unicornio 🦄',
+  Animal.tigre: 'Tigre 🐯',
+  Animal.cocodrilo: 'Dragón 🐲',
+};
+// frases por defecto (si no eliges ninguna)
 const petDefaultPhrases = [
-  '¡Venga, otra sesión! Tú puedes 💪',
-  'Solo 5 minutos y ya estás dentro 🚀',
-  'Cada sesión te acerca a tu meta 🎯',
-  'Tu yo del futuro te lo agradecerá ✨',
-  'Respira hondo… ¡y a por ello! 🌟',
-  'Un pasito más y descansas 😉',
-  'La constancia gana al talento 🌱',
-  '¡Mira cuánto has avanzado ya! 🏆',
-];
-
-class Pet {
-  String id, kind, name;
-  int color;
-  List<String> phrases;
-  Pet(this.id, this.kind, this.name, this.color, this.phrases);
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'kind': kind, 'name': name, 'color': color, 'phrases': phrases};
-  factory Pet.fromJson(Map<String, dynamic> m) {
-    var k = m['kind'] as String;
-    if (k == 'grillo') k = 'mariposa';
-    if (k == 'mariquita') k = 'pajarito';
-    return Pet(m['id'] as String, k, m['name'] as String, m['color'] as int,
-        List<String>.from(m['phrases'] as List));
-  }
-}
-
-List<Pet> loadPets() {
-  final s = store.p.getString('pets');
-  if (s == null) return [];
-  try {
-    return [for (final m in jsonDecode(s) as List) Pet.fromJson(Map<String, dynamic>.from(m as Map))];
-  } catch (_) {
-    return [];
-  }
-}
-
-const _pch = MethodChannel('focuspet/blocker');
-const petReminderDefaults = [
   'Vuelve al trabajo, es hora de conseguirlo 💪',
   'Tu objetivo no descansa, tú tampoco',
   'La disciplina vence todo',
   'El mejor momento es ahora, regresa',
   'Otra oportunidad, vuelve',
+  '¡Venga, otra sesión! Tú puedes 💪',
+  'Solo 5 minutos y ya estás dentro 🚀',
+  'Tu yo del futuro te lo agradecerá ✨',
 ];
+
+/// Una sola mascota por animal (se elige tipo, nombre y color).
+class Pet {
+  final String kind, name;
+  final int color;
+  const Pet(this.kind, this.name, this.color);
+  Pet copy({String? kind, String? name, int? color}) => Pet(kind ?? this.kind, name ?? this.name, color ?? this.color);
+  Map<String, dynamic> toJson() => {'kind': kind, 'name': name, 'color': color};
+}
+
+Pet? loadPet(Animal a) {
+  final s = store.p.getString('pet_${a.name}');
+  if (s == null) return null;
+  try {
+    final m = Map<String, dynamic>.from(jsonDecode(s) as Map);
+    final k = m['kind'] as String;
+    return Pet(petKinds.contains(k) ? k : 'mariposa', m['name'] as String, m['color'] as int);
+  } catch (_) {
+    return null;
+  }
+}
+
+void savePet(Animal a, Pet? p) {
+  if (p == null) {
+    store.p.remove('pet_${a.name}');
+  } else {
+    store.p.setString('pet_${a.name}', jsonEncode(p.toJson()));
+  }
+  syncPetReminders();
+}
+
+/// Frases de TODAS las mascotas: las elegidas del repertorio 💬 (o las de por defecto).
+List<String> petPhrases() {
+  final l = store.p.getStringList('pet_phrases');
+  return (l == null || l.isEmpty) ? petDefaultPhrases : l;
+}
+
+void savePetPhrases(List<String> l) {
+  store.p.setStringList('pet_phrases', l);
+  syncPetReminders();
+}
+
+String petPhrase() {
+  final l = petPhrases();
+  return l[Random().nextInt(l.length)];
+}
+
+const _pch = MethodChannel('focuspet/blocker');
 
 // programa (o apaga) los avisos de las mascotas en el móvil
 Future<void> syncPetReminders() async {
-  final pets = loadPets();
-  final data = jsonEncode(pets.isEmpty
-      ? [{'name': 'Tu mascota', 'phrases': petReminderDefaults}]
-      : [for (final p in pets) {'name': p.name, 'phrases': p.phrases.isEmpty ? petReminderDefaults : p.phrases}]);
+  final pets = [for (final a in Animal.values) loadPet(a)].whereType<Pet>().toList();
+  final ph = petPhrases();
+  final data = jsonEncode([
+    for (final n in (pets.isEmpty ? ['Tu mascota'] : [for (final p in pets) p.name])) {'name': n, 'phrases': ph}
+  ]);
   try {
     await _pch.invokeMethod('petReminder', {
       'on': store.p.getBool('pet_rem_on') ?? false,
@@ -94,18 +114,6 @@ Future<void> syncPetReminders() async {
       'data': data,
     });
   } catch (_) {}
-}
-
-void savePets(List<Pet> l) {
-  store.p.setString('pets', jsonEncode([for (final p in l) p.toJson()]));
-  syncPetReminders();
-}
-
-String petPhrase([Pet? p]) {
-  final l = loadPets();
-  final pet = p ?? (l.isEmpty ? null : l[Random().nextInt(l.length)]);
-  final ph = (pet == null || pet.phrases.isEmpty) ? petDefaultPhrases : pet.phrases;
-  return ph[Random().nextInt(ph.length)];
 }
 
 // ---------------------------------------------------------------- dibujo
@@ -120,7 +128,7 @@ class PetSprite extends StatefulWidget {
 
 class _PetSpriteState extends State<PetSprite> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 2600))..repeat();
 
   @override
   void dispose() {
@@ -197,6 +205,20 @@ class _PetPainter extends CustomPainter {
         _f(const Color(0xFFFFF3B0)));
   }
 
+  void _feather(Canvas c, Offset pv, double ang, double len, Color base) {
+    c.save();
+    c.translate(pv.dx, pv.dy);
+    c.rotate(ang);
+    _shape(c, Path()..moveTo(0, 0)..quadraticBezierTo(len * .5, -len * .17, len, 0)..quadraticBezierTo(len * .5, len * .17, 0, 0)..close(), base);
+    c.restore();
+  }
+
+  Path _flame(Offset o, double h) => Path()
+    ..moveTo(o.dx, o.dy - h)
+    ..quadraticBezierTo(o.dx + h * .6, o.dy - h * .2, o.dx, o.dy + h * .4)
+    ..quadraticBezierTo(o.dx - h * .6, o.dy - h * .2, o.dx, o.dy - h)
+    ..close();
+
   // ojos grandes con doble brillo, mejillas y boquita «ω»
   void _face(Canvas c, Offset o, double sep, {double s = 1}) {
     for (final d in [-1.0, 1.0]) {
@@ -224,7 +246,7 @@ class _PetPainter extends CustomPainter {
     final lt = _w(col, .55);
     c.drawOval(Rect.fromCenter(center: const Offset(50, 95), width: 46, height: 7), _f(const Color(0x22000000)));
     final hop = sin(t * 2 * pi).abs();
-    c.translate(0, -8 * hop);
+    c.translate(0, -5 * hop);
     switch (kind) {
       case 'mariposa':
         final fm = .35 + .65 * sin(t * 4 * pi).abs();
@@ -259,37 +281,48 @@ class _PetPainter extends CustomPainter {
         _face(c, const Offset(50, 41), 5.6, s: .85);
         break;
       case 'buho':
-        _shape(c, Path()..moveTo(26, 28)..lineTo(30, 8)..lineTo(46, 24)..close(), _d(col, .12));
-        _shape(c, Path()..moveTo(74, 28)..lineTo(70, 8)..lineTo(54, 24)..close(), _d(col, .12));
-        final fl = .18 * sin(t * 2 * pi);
+        final fl = .12 * sin(t * 2 * pi);
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50 + d * 33, 62);
-          c.rotate(d * (.15 + fl));
-          _blob(c, Rect.fromCenter(center: Offset.zero, width: 17, height: 42), _d(col, .18));
+          c.translate(50 + d * 31, 66);
+          c.rotate(d * (.12 + fl));
+          _blob(c, Rect.fromCenter(center: Offset.zero, width: 17, height: 44), _d(col, .2));
           c.restore();
         }
-        _blob(c, Rect.fromCenter(center: const Offset(50, 58), width: 66, height: 72), col);
-        c.drawOval(Rect.fromCenter(center: const Offset(50, 73), width: 38, height: 42), _f(_w(col, .65)));
-        for (final y in [66.0, 75.0, 84.0]) {
-          c.drawArc(Rect.fromCenter(center: Offset(50, y), width: 14, height: 8), .3, pi - .6, false, _l(_d(col, .2).withAlpha(110), 1.4));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 64), width: 62, height: 60), col);
+        c.drawOval(Rect.fromCenter(center: const Offset(50, 76), width: 38, height: 38), _f(const Color(0xFFFFF6E6)));
+        for (final y in [70.0, 79.0, 88.0]) {
+          for (final x in [-8.0, 8.0]) {
+            c.drawArc(Rect.fromCenter(center: Offset(50 + x, y), width: 14, height: 8), .3, pi - .6, false, _l(const Color(0xFFC9B9A0), 1.4));
+          }
         }
         for (final d in [-1.0, 1.0]) {
-          final e = Offset(50 + d * 13, 44);
-          c.drawCircle(e, 13.5, _f(_w(col, .8)));
-          c.drawCircle(e, 13.5, _l(_d(col), 1.4));
-          c.drawCircle(e.translate(0, 1), 7.4, _f(ink));
-          c.drawCircle(e.translate(-2.4, -2), 2.9, _f(Colors.white));
-          c.drawCircle(e.translate(2.4, 3.4), 1.4, _f(Colors.white));
-          c.drawCircle(Offset(50 + d * 29, 56), 3.6, _f(const Color(0x66FF6F9F)));
+          final tuft = Path()
+            ..moveTo(50 + d * 30, 34)
+            ..quadraticBezierTo(50 + d * 38, 14, 50 + d * 32, 6)
+            ..quadraticBezierTo(50 + d * 26, 16, 50 + d * 16, 20)
+            ..close();
+          _shape(c, tuft, _d(col, .18));
         }
-        _shape(c, Path()..moveTo(50, 50)..lineTo(45, 57)..lineTo(55, 57)..close(), const Color(0xFFFF9F43));
-        c.drawPath(Path()..moveTo(50, 11)..lineTo(80, 22)..lineTo(50, 33)..lineTo(20, 22)..close(), _f(ink));
-        c.drawPath(Path()..moveTo(36, 28)..lineTo(36, 35)..quadraticBezierTo(50, 41, 64, 35)..lineTo(64, 28)..close(), _f(const Color(0xFF3B3355)));
-        c.drawLine(const Offset(76, 23), const Offset(79, 38), _l(const Color(0xFFFFD84D), 1.6));
-        c.drawCircle(const Offset(79, 40), 2.6, _f(const Color(0xFFFFD84D)));
-        c.drawLine(const Offset(42, 94), const Offset(42, 91), _l(const Color(0xFFFF9F43), 3));
-        c.drawLine(const Offset(58, 94), const Offset(58, 91), _l(const Color(0xFFFF9F43), 3));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 42), width: 66, height: 50), col);
+        _shape(c, Path()..moveTo(50, 20)..lineTo(58, 30)..lineTo(50, 50)..lineTo(42, 30)..close(), _d(col, .22));
+        for (final d in [-1.0, 1.0]) {
+          final e = Offset(50 + d * 16, 43);
+          c.drawCircle(e, 17.5, _f(const Color(0xFFFFF6E6)));
+          c.drawCircle(e, 17.5, _l(const Color(0xFF3B3355), 2.4));
+          c.drawCircle(e, 11, _f(ink));
+          c.drawCircle(e.translate(0, 1), 8, _f(const Color(0xFFE8842E)));
+          c.drawCircle(e.translate(0, 1.5), 4.8, _f(ink));
+          c.drawCircle(e.translate(-3, -3), 3.2, _f(Colors.white));
+          c.drawCircle(e.translate(3, 4), 1.6, _f(Colors.white));
+          c.drawOval(Rect.fromCenter(center: Offset(50 + d * 27, 58), width: 9, height: 5), _f(const Color(0x77FF6F9F)));
+        }
+        _shape(c, Path()..moveTo(50, 50)..lineTo(45.5, 57)..lineTo(54.5, 57)..close(), const Color(0xFFFF9F43));
+        for (final d in [-1.0, 1.0]) {
+          for (final x in [-4.0, 0.0, 4.0]) {
+            c.drawOval(Rect.fromCenter(center: Offset(50 + d * 12 + x, 94), width: 4.4, height: 5), _f(const Color(0xFFFF9F43)));
+          }
+        }
         break;
       case 'abeja':
         final fw = .6 + .4 * sin(t * 6 * pi).abs();
@@ -316,66 +349,43 @@ class _PetPainter extends CustomPainter {
         c.drawPath(Path()..moveTo(50, 93)..lineTo(46, 100)..lineTo(54, 100)..close(), _f(ink));
         _face(c, const Offset(50, 56), 12);
         break;
-      case 'pajarito':
-        final wf = .3 * sin(t * 4 * pi);
-        _shape(c, Path()..moveTo(26, 56)..lineTo(4, 46)..lineTo(8, 58)..lineTo(2, 66)..lineTo(28, 66)..close(), dk);
-        _blob(c, Rect.fromCenter(center: const Offset(46, 62), width: 62, height: 48), col);
-        c.drawOval(Rect.fromCenter(center: const Offset(48, 73), width: 38, height: 22), _f(_w(col, .6)));
-        c.save();
-        c.translate(40, 58);
-        c.rotate(-.2 - wf);
-        _blob(c, Rect.fromCenter(center: const Offset(-4, 4), width: 32, height: 19), dk);
-        c.restore();
-        _blob(c, Rect.fromCenter(center: const Offset(68, 42), width: 36, height: 34), col);
-        _shape(c, Path()..moveTo(83, 40)..lineTo(96, 45)..lineTo(83, 50)..close(), const Color(0xFFFF9F43));
-        c.drawOval(Rect.fromCenter(center: const Offset(73, 40), width: 9, height: 11), _f(ink));
-        c.drawCircle(const Offset(71.6, 37.6), 2.8, _f(Colors.white));
-        c.drawCircle(const Offset(74.6, 42.4), 1.3, _f(Colors.white));
-        c.drawOval(Rect.fromCenter(center: const Offset(66, 49), width: 9, height: 6), _f(const Color(0x77FF6F9F)));
-        for (final a in [-.5, 0.0, .5]) {
-          c.drawPath(Path()..moveTo(66, 26)..quadraticBezierTo(66 + a * 16, 14, 66 + a * 22, 18), _l(dk, 2.2));
+      case 'fenix':
+        const gold = Color(0xFFFFC93C);
+        final sw = .12 * sin(t * 2 * pi);
+        for (final k in [-1, 0, 1]) {
+          _feather(c, const Offset(50, 78), pi / 2 + k * .38 + sw * k, 30 - k.abs() * 4.0, k == 0 ? col : gold);
         }
-        for (int k = 0; k < 5; k++) {
-          c.drawCircle(Offset(56 + 4.6 * cos(k * 1.2566 - 1.2), 24 + 4.6 * sin(k * 1.2566 - 1.2)), 2.8, _f(const Color(0xFFFF8FB8)));
-        }
-        c.drawCircle(const Offset(56, 24), 2, _f(const Color(0xFFFFE066)));
-        c.drawLine(const Offset(40, 84), const Offset(40, 92), _l(const Color(0xFFFF9F43), 2.6));
-        c.drawLine(const Offset(54, 84), const Offset(54, 92), _l(const Color(0xFFFF9F43), 2.6));
-        break;
-      default: // pollito en su huevo
-        c.drawPath(Path()..moveTo(46, 25)..quadraticBezierTo(44, 12, 40, 14), _l(dk, 2.6));
-        c.drawPath(Path()..moveTo(50, 24)..quadraticBezierTo(50, 8, 53, 9), _l(dk, 2.6));
-        c.drawPath(Path()..moveTo(54, 25)..quadraticBezierTo(58, 12, 62, 14), _l(dk, 2.6));
-        _blob(c, Rect.fromCenter(center: const Offset(50, 54), width: 64, height: 62), col);
-        final fl2 = .2 * sin(t * 2 * pi);
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50 + d * 32, 58);
-          c.rotate(d * (.3 + fl2));
-          _blob(c, Rect.fromCenter(center: Offset.zero, width: 14, height: 26), dk);
+          c.translate(50, 56);
+          c.scale(d, 1);
+          for (int k = 0; k < 5; k++) {
+            _feather(c, const Offset(10, 0), -1.25 + k * .33 + sw, 40 - k * 3.0, k.isEven ? _d(col, .12) : col);
+          }
+          for (int k = 0; k < 4; k++) {
+            _feather(c, const Offset(10, 2), -.95 + k * .34 + sw, 26 - k * 2.0, k < 2 ? gold : _w(col, .25));
+          }
           c.restore();
         }
-        _shape(c, Path()..moveTo(50, 52)..lineTo(44, 58)..lineTo(56, 58)..close(), const Color(0xFFFF9F43));
-        _face(c, const Offset(50, 46), 12);
-        final shell = Path()
-          ..moveTo(12, 66)
-          ..lineTo(21, 74)
-          ..lineTo(30, 65)
-          ..lineTo(39, 74)
-          ..lineTo(48, 65)
-          ..lineTo(57, 74)
-          ..lineTo(66, 65)
-          ..lineTo(75, 74)
-          ..lineTo(84, 65)
-          ..lineTo(88, 66)
-          ..lineTo(86, 90)
-          ..quadraticBezierTo(50, 100, 14, 90)
-          ..close();
-        c.drawPath(shell, _f(const Color(0xFFFFFBF2)));
-        c.drawPath(shell, _l(const Color(0xFFD9C9B0), 1.6));
-        c.drawPath(Path()..moveTo(70, 18)..lineTo(78, 12)..lineTo(78, 26)..close(), _f(const Color(0xFFFF8FB8)));
-        c.drawPath(Path()..moveTo(86, 18)..lineTo(78, 12)..lineTo(78, 26)..close(), _f(const Color(0xFFFF8FB8)));
-        c.drawCircle(const Offset(78, 19), 3, _f(const Color(0xFFE8587F)));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 66), width: 36, height: 38), col);
+        c.drawOval(Rect.fromCenter(center: const Offset(50, 71), width: 21, height: 23), _f(const Color(0xFFFFF1D6)));
+        c.drawPath(_flame(const Offset(50, 72), 8), _f(gold));
+        for (final d in [-1.0, 1.0]) {
+          for (final x in [-3.0, 0.0, 3.0]) {
+            c.drawLine(Offset(50 + d * 8 + x, 84), Offset(50 + d * 8 + x * 1.6, 90), _l(const Color(0xFFE08A1E), 1.6));
+          }
+        }
+        _blob(c, Rect.fromCenter(center: const Offset(50, 40), width: 40, height: 36), col);
+        for (final k in [-1, 0, 1]) {
+          final fb = Offset(50.0 + k * 9, 24);
+          c.drawPath(_flame(fb.translate(sw * 14 * k, -4), 13 - k.abs() * 3.0), _f(k == 0 ? gold : const Color(0xFFFFA630)));
+          c.drawPath(_flame(fb.translate(sw * 14 * k, -3), 7 - k.abs() * 2.0), _f(const Color(0xFFFFE9A0)));
+        }
+        _face(c, const Offset(50, 41), 9.5, s: .9);
+        _shape(c, Path()..moveTo(50, 44)..lineTo(46.5, 49)..lineTo(53.5, 49)..close(), gold);
+        final fa = .6 + .4 * sin(t * 4 * pi);
+        c.drawPath(_flame(const Offset(14, 40), 6 * fa), _f(const Color(0xCCFFA630)));
+        c.drawPath(_flame(const Offset(88, 52), 5 * (1.2 - fa * .4)), _f(const Color(0xCCFF7A30)));
         break;
     }
     final k1 = .6 + .4 * sin(t * 4 * pi);
@@ -389,64 +399,89 @@ class _PetPainter extends CustomPainter {
   bool shouldRepaint(_PetPainter o) => o.t != t || o.kind != kind || o.col != col;
 }
 
-// ---------------------------------------------------------------- escenario: mascotas alrededor del animal
+// ---------------------------------------------------------------- escenario: la mascota da vueltas alrededor del animal
 class PetStage extends StatefulWidget {
+  final Animal animal;
   final Widget child;
   final Color ink;
   final VoidCallback onStart;
-  const PetStage({super.key, required this.child, required this.ink, required this.onStart});
+  const PetStage({super.key, required this.animal, required this.child, required this.ink, required this.onStart});
   @override
   State<PetStage> createState() => _PetStageState();
 }
 
 class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(seconds: 14))..repeat();
-  Timer? _t;
-  Timer? _hide;
-  Timer? _shake;
+  final _rnd = Random();
+  final _tickN = ValueNotifier<double>(0);
+  late final Ticker _tk = createTicker(_onTick);
+  Duration _last = Duration.zero;
+  double _el = 0, th = 0, om = 0, rk = 1, ryk = 1, rkT = 1, rykT = 1, next = 5;
+  double dir = 1;
+  Timer? _t, _hide, _talkT, _buzzT;
   String? msg;
-  Pet? who;
-  bool shaking = false;
+  bool talking = false, buzzing = false;
 
   @override
   void initState() {
     super.initState();
+    dir = _rnd.nextBool() ? 1 : -1;
+    _tk.start();
     _t = Timer.periodic(const Duration(seconds: 25), (_) => _speak());
     Future.delayed(const Duration(milliseconds: 2500), _speak);
   }
 
   @override
   void dispose() {
-    _c.dispose();
+    _tk.dispose();
+    _tickN.dispose();
     _t?.cancel();
     _hide?.cancel();
-    _shake?.cancel();
+    _talkT?.cancel();
+    _buzzT?.cancel();
     super.dispose();
   }
 
+  // movimiento suave: círculos grandes que cambian de sentido y de tamaño
+  void _onTick(Duration d) {
+    final dt = ((d - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    _last = d;
+    _el = d.inMicroseconds / 1e6;
+    if (_el > next) {
+      if (_rnd.nextDouble() < .6) dir = -dir;
+      rkT = .7 + _rnd.nextDouble() * .5;
+      rykT = .75 + _rnd.nextDouble() * .3;
+      next = _el + 5 + _rnd.nextDouble() * 8;
+    }
+    om += (dir * .4 * (talking ? .2 : 1.0) - om) * min(1.0, dt * 1.2);
+    th += om * dt;
+    rk += (rkT - rk) * min(1.0, dt * .5);
+    ryk += (rykT - ryk) * min(1.0, dt * .5);
+    _tickN.value = _el;
+  }
+
   Future<void> _buzz() async {
-    for (int i = 0; i < 4; i++) {
-      HapticFeedback.heavyImpact();
-      await Future.delayed(const Duration(milliseconds: 160));
+    for (int i = 0; i < 2; i++) {
+      HapticFeedback.mediumImpact();
+      await Future.delayed(const Duration(milliseconds: 130));
       if (!mounted) return;
     }
   }
 
-  void _speak([Pet? p]) {
-    if (!mounted) return;
-    final l = loadPets();
-    if (l.isEmpty) return;
-    final pet = p ?? l[Random().nextInt(l.length)];
+  void _speak() {
+    if (!mounted || loadPet(widget.animal) == null) return;
     setState(() {
-      who = pet;
-      msg = petPhrase(pet);
-      shaking = true;
+      msg = petPhrase();
+      talking = true;
+      buzzing = true;
     });
     _buzz();
-    _shake?.cancel();
-    _shake = Timer(const Duration(milliseconds: 2400), () {
-      if (mounted) setState(() => shaking = false);
+    _buzzT?.cancel();
+    _buzzT = Timer(const Duration(milliseconds: 450), () {
+      if (mounted) setState(() => buzzing = false);
+    });
+    _talkT?.cancel();
+    _talkT = Timer(const Duration(milliseconds: 2600), () {
+      if (mounted) setState(() => talking = false);
     });
     _hide?.cancel();
     _hide = Timer(const Duration(seconds: 10), () {
@@ -456,25 +491,22 @@ class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final pets = loadPets().take(4).toList();
+    final pet = loadPet(widget.animal);
     return Column(children: [
       SizedBox(
         height: 230,
         child: LayoutBuilder(
           builder: (_, box) => AnimatedBuilder(
-            animation: _c,
-            builder: (_, __) {
-              final w = box.maxWidth;
-              return Stack(clipBehavior: Clip.none, children: [
-                Positioned.fill(child: widget.child),
-                for (int i = 0; i < pets.length; i++) _pet(pets[i], i, pets.length, w),
-              ]);
-            },
+            animation: _tickN,
+            builder: (_, __) => Stack(clipBehavior: Clip.none, children: [
+              Positioned.fill(child: widget.child),
+              if (pet != null) _pet(pet, box.maxWidth),
+            ]),
           ),
         ),
       ),
-      if (msg != null) ...[
-        ComicBubble(text: '${who?.name ?? ''}: $msg'),
+      if (msg != null && pet != null) ...[
+        ComicBubble(text: '${pet.name}: $msg'),
         FilledButton.tonal(
             onPressed: () {
               setState(() => msg = null);
@@ -482,55 +514,76 @@ class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin
             },
             child: const Text('¡Empezar sesión! 🚀')),
       ],
-      if (pets.isEmpty)
+      if (pet == null)
         ActionChip(
-            label: const Text('🐾 Crear mascota ayudante'),
+            label: const Text('🐾 Elegir mascota ayudante'),
             onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => const PetsScreen()));
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => PetsScreen(animal: widget.animal)));
               if (mounted) setState(() {});
             }),
     ]);
   }
 
-  Widget _pet(Pet p, int i, int n, double w) {
-    final dir = i.isEven ? 1.0 : -1.0;
-    final a = 2 * pi * (dir * _c.value + i / max(1, n));
-    final rx = min(w / 2 - 30, 150.0) * (i.isEven ? 1.0 : 0.82);
-    final ry = 92.0 * (i.isEven ? 0.85 : 1.0);
-    var x = w / 2 + rx * cos(a) - 30;
-    var y = 115 + ry * sin(a) * 0.95 - 30 + 6 * sin(2 * pi * (3 * _c.value + i));
-    if (shaking && who?.id == p.id) {
-      x += 3.5 * sin(_c.value * 2 * pi * 120);
-      y += 2.5 * cos(_c.value * 2 * pi * 140);
+  Widget _pet(Pet p, double w) {
+    const half = 21.0;
+    var x = w / 2 + (w / 2) * rk * cos(th) - half;
+    var y = 115 + 100 * ryk * sin(th) - half + 3 * sin(_el * 1.3);
+    if (buzzing) {
+      x += 2.2 * sin(_el * 45);
+      y += 1.6 * cos(_el * 52);
     }
     return Positioned(
       left: x,
       top: y,
-      child: GestureDetector(
-        onTap: () => _speak(p),
-        child: PetSprite(kind: p.kind, color: Color(p.color), size: 60),
+      child: AnimatedScale(
+        scale: talking ? 1.7 : 1.0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutBack,
+        child: GestureDetector(
+          onTap: _speak,
+          child: PetSprite(kind: p.kind, color: Color(p.color), size: 42),
+        ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------- pantallas
+// ---------------------------------------------------------------- pantalla de la mascota
 class PetsScreen extends StatefulWidget {
-  const PetsScreen({super.key});
+  final Animal animal;
+  const PetsScreen({super.key, required this.animal});
   @override
   State<PetsScreen> createState() => _PetsState();
 }
 
 class _PetsState extends State<PetsScreen> {
-  List<Pet> pets = loadPets();
+  late Pet? pet = loadPet(widget.animal);
+  late final nameC = TextEditingController(text: pet?.name ?? '');
+  late final Set<String> chosen = {...(store.p.getStringList('pet_phrases') ?? <String>[])};
+  late final List<String> rep = [...loadPhrases(), ...chosen.where((x) => !loadPhrases().contains(x))];
   bool remOn = store.p.getBool('pet_rem_on') ?? false;
   int every = store.p.getInt('pet_rem_min') ?? 120;
   int from = store.p.getInt('pet_sleep_from') ?? 23 * 60;
   int to = store.p.getInt('pet_sleep_to') ?? 8 * 60;
 
-  String _hm(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
+  @override
+  void dispose() {
+    nameC.dispose();
+    super.dispose();
+  }
 
+  String _hm(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60).toString().padLeft(2, '0')}';
   String _every(int m) => m < 60 ? '$m min' : (m % 60 == 0 ? '${m ~/ 60} h' : '${m ~/ 60} h ${m % 60} min');
+
+  void _setPet(Pet? p) {
+    setState(() => pet = p);
+    savePet(widget.animal, p);
+  }
+
+  void _savePhrases() {
+    savePetPhrases([for (final f in rep) if (chosen.contains(f)) f]);
+    setState(() {});
+  }
 
   void _saveRem() {
     store.p.setBool('pet_rem_on', remOn);
@@ -551,20 +604,6 @@ class _PetsState extends State<PetsScreen> {
       to = t.hour * 60 + t.minute;
     }
     _saveRem();
-  }
-
-  Future<void> _edit([Pet? p]) async {
-    final r = await Navigator.push<Pet>(context, MaterialPageRoute(builder: (_) => _PetEditor(pet: p)));
-    if (r == null) return;
-    final i = pets.indexWhere((x) => x.id == r.id);
-    setState(() {
-      if (i >= 0) {
-        pets[i] = r;
-      } else {
-        pets.add(r);
-      }
-    });
-    savePets(pets);
   }
 
   Widget _remCard() => Card(
@@ -604,120 +643,126 @@ class _PetsState extends State<PetsScreen> {
         ]),
       );
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Mascotas ayudantes 🐾')),
-        floatingActionButton: pets.length >= 4
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: _edit, icon: const Icon(Icons.add), label: const Text('Crear mascota')),
-        body: ListView(children: [
-          _remCard(),
-          if (pets.isEmpty)
-            const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Crea una mascota que te anime con frases para empezar otra sesión de estudio (hasta 4).',
-                    textAlign: TextAlign.center)),
-          for (final p in pets)
-            ListTile(
-              leading: PetSprite(kind: p.kind, color: Color(p.color), size: 56),
-              title: Text(p.name),
-              subtitle: Text('${petLabels[p.kind]} · ${p.phrases.isEmpty ? 'frases por defecto' : '${p.phrases.length} frases'}'),
-              onTap: () => _edit(p),
-              trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () {
-                    setState(() => pets.remove(p));
-                    savePets(pets);
-                  }),
+  Widget _pick() => Wrap(spacing: 12, runSpacing: 12, alignment: WrapAlignment.center, children: [
+        for (final k in petKinds)
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              final p = Pet(k, petDefaultName[k]!, petDefaultColor[k]!);
+              nameC.text = p.name;
+              _setPet(p);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(children: [
+                PetSprite(kind: k, color: Color(petDefaultColor[k]!), size: 72),
+                Text(petLabels[k]!),
+              ]),
             ),
-          const SizedBox(height: 80),
+          ),
+      ]);
+
+  Widget _edit(Pet p) => Column(children: [
+        PetSprite(kind: p.kind, color: Color(p.color), size: 120),
+        Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
+          for (final k in petKinds)
+            ChoiceChip(
+                label: Text(petLabels[k]!),
+                selected: p.kind == k,
+                onSelected: (_) {
+                  final cur = pet!;
+                  var n = cur.name;
+                  var c = cur.color;
+                  if (n == petDefaultName[cur.kind]) {
+                    n = petDefaultName[k]!;
+                    nameC.text = n;
+                  }
+                  if (c == petDefaultColor[cur.kind]) c = petDefaultColor[k]!;
+                  _setPet(cur.copy(kind: k, name: n, color: c));
+                }),
         ]),
-      );
-}
-
-// repertorio de frases creadas (el de 💬)
-List<String> _repertoire() => loadPhrases();
-
-class _PetEditor extends StatefulWidget {
-  final Pet? pet;
-  const _PetEditor({this.pet});
-  @override
-  State<_PetEditor> createState() => _PetEditorState();
-}
-
-class _PetEditorState extends State<_PetEditor> {
-  late String kind = widget.pet?.kind ?? 'mariposa';
-  late int color = widget.pet?.color ?? petDefaultColor['mariposa']!;
-  late final name = TextEditingController(text: widget.pet?.name ?? petDefaultName['mariposa']!);
-  late final Set<String> chosen = {...(widget.pet?.phrases ?? <String>[])};
-  late final List<String> rep = [..._repertoire(), ...chosen.where((x) => !_repertoire().contains(x))];
-
-  @override
-  void dispose() {
-    name.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Tu mascota ✨')),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
-          Center(child: PetSprite(kind: kind, color: Color(color), size: 130)),
-          Wrap(spacing: 8, alignment: WrapAlignment.center, children: [
-            for (final k in petKinds)
-              ChoiceChip(
-                  label: Text(petLabels[k]!),
-                  selected: kind == k,
-                  onSelected: (_) => setState(() {
-                        if (name.text == petDefaultName[kind]) name.text = petDefaultName[k]!;
-                        kind = k;
-                        color = petDefaultColor[k]!;
-                      })),
-          ]),
-          const SizedBox(height: 10),
-          Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
-            for (final c in petPalette)
-              GestureDetector(
-                onTap: () => setState(() => color = c),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                      color: Color(c),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: color == c ? Colors.black : Colors.black26, width: color == c ? 3 : 1)),
-                ),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
+          for (final c in petPalette)
+            GestureDetector(
+              onTap: () => _setPet(pet!.copy(color: c)),
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    color: Color(c),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: p.color == c ? Colors.black : Colors.black26, width: p.color == c ? 3 : 1)),
               ),
-          ]),
-          TextField(controller: name, maxLength: 16, decoration: const InputDecoration(labelText: 'Nombre')),
-          const SizedBox(height: 4),
-          Row(children: [
-            const Expanded(
-                child: Text('Sus frases (de tu repertorio 💬)', style: TextStyle(fontWeight: FontWeight.w700))),
-            TextButton(onPressed: () => setState(() => chosen.addAll(rep)), child: const Text('Todas')),
-            TextButton(onPressed: () => setState(chosen.clear), child: const Text('Ninguna')),
-          ]),
-          const Text('Sin elegir ninguna usará frases motivadoras por defecto',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-          for (final f in rep)
-            CheckboxListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              value: chosen.contains(f),
-              title: Text(f),
-              onChanged: (v) => setState(() => v == true ? chosen.add(f) : chosen.remove(f)),
             ),
-          const SizedBox(height: 12),
-          FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                    context,
-                    Pet(widget.pet?.id ?? DateTime.now().microsecondsSinceEpoch.toString(), kind,
-                        name.text.trim().isEmpty ? 'Mascota' : name.text.trim(), color,
-                        [for (final f in rep) if (chosen.contains(f)) f]));
-              },
-              child: const Text('Guardar')),
         ]),
-      );
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: TextField(
+            controller: nameC,
+            maxLength: 16,
+            decoration: const InputDecoration(labelText: 'Nombre'),
+            onChanged: (v) {
+              pet = pet!.copy(name: v.trim().isEmpty ? 'Mascota' : v.trim());
+              savePet(widget.animal, pet);
+            },
+          ),
+        ),
+        TextButton(onPressed: () => _setPet(null), child: const Text('Quitar mascota')),
+      ]);
+
+  @override
+  Widget build(BuildContext context) {
+    final p = pet;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mascota ayudante 🐾')),
+      body: ListView(padding: const EdgeInsets.only(bottom: 40), children: [
+        _remCard(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Text('Mascota de ${animalLabels[widget.animal]} (una por animal)',
+              style: const TextStyle(fontWeight: FontWeight.w900)),
+        ),
+        p == null ? _pick() : _edit(p),
+        const Divider(height: 32),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            const Expanded(child: Text('Frases de las mascotas (de tu repertorio 💬)', style: TextStyle(fontWeight: FontWeight.w900))),
+            TextButton(
+                onPressed: () {
+                  chosen.addAll(rep);
+                  _savePhrases();
+                },
+                child: const Text('Todas')),
+            TextButton(
+                onPressed: () {
+                  chosen.clear();
+                  _savePhrases();
+                },
+                child: const Text('Ninguna')),
+          ]),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text('Valen para todas tus mascotas. Sin elegir ninguna, usan frases motivadoras por defecto.',
+              style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ),
+        for (final f in rep)
+          CheckboxListTile(
+            dense: true,
+            value: chosen.contains(f),
+            title: Text(f),
+            onChanged: (v) {
+              if (v == true) {
+                chosen.add(f);
+              } else {
+                chosen.remove(f);
+              }
+              _savePhrases();
+            },
+          ),
+      ]),
+    );
+  }
 }

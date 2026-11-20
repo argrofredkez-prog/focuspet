@@ -427,7 +427,7 @@ class _AnimalPainter extends CustomPainter {
     c.drawOval(Rect.fromCenter(center: const Offset(50, 95), width: 54, height: 6),
         _f(const Color(0x22000000)));
     _tail(c);
-    if (a == Animal.unicornio) _mane(c);
+    if (a == Animal.unicornio) _flameMane(c);
     _back(c);
     _feet(c);
     _boots(c);
@@ -560,20 +560,33 @@ class _AnimalPainter extends CustomPainter {
   }
 
   // ---------------- crin arcoíris (unicornio) ----------------
-  void _mane(Canvas c) {
-    const cols = [Color(0xFFFFA8CC), Color(0xFFFFE27A), Color(0xFF9AD1FF), Color(0xFFC9B3F5), Color(0xFFFFA8CC)];
-    Path mp(int i) => Path()
-      ..moveTo(48, 12.0 + i)
-      ..cubicTo(26.0 - i, 4, 14.0 - i * 1.5, 30.0 + i * 2, 26.0 + i * 2, 54.0 + i * 3);
-    _both(c, () {
-      for (int i = 0; i < cols.length; i++) {
-        c.drawPath(mp(i), _l(p.line, 8.4));
-      }
-      for (int i = 0; i < cols.length; i++) {
-        c.drawPath(mp(i), _l(cols[i], 6));
-        c.drawCircle(Offset(26.0 + i * 2, 54.0 + i * 3), 3.6, _f(cols[i]));
-      }
-    });
+  // crin arcoíris flameante (solo en el lado derecho)
+  void _flameMane(Canvas c) {
+    const cols = [
+      Color(0xFFFF6B8B), Color(0xFFFFB04C), Color(0xFFFFE066), Color(0xFF7DDFA8),
+      Color(0xFF7ED6FF), Color(0xFFB59CFF), Color(0xFFFFA8CC)
+    ];
+    final tt = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    for (int i = 0; i < cols.length; i++) {
+      final base = Offset(63.0 + i * 1.8, 13.0 + i * 6.2);
+      final ang = -0.95 + i * 0.2 + 0.12 * sin(tt * 3 + i * 0.7);
+      final len = 24.0 - i * 1.4 + 2.0 * sin(tt * 4 + i);
+      final dir = Offset(cos(ang), sin(ang));
+      final nrm = Offset(-dir.dy, dir.dx);
+      final tip = base + dir * len;
+      final fl = Path()
+        ..moveTo(base.dx - nrm.dx * 3.4, base.dy - nrm.dy * 3.4)
+        ..quadraticBezierTo(base.dx + dir.dx * len * .55 - nrm.dx * 6, base.dy + dir.dy * len * .55 - nrm.dy * 6, tip.dx, tip.dy)
+        ..quadraticBezierTo(base.dx + dir.dx * len * .5 + nrm.dx * 5, base.dy + dir.dy * len * .5 + nrm.dy * 5, base.dx + nrm.dx * 3.4, base.dy + nrm.dy * 3.4)
+        ..close();
+      c.drawPath(fl, _f(cols[i]));
+      c.drawPath(fl, _l(p.line, 0.9));
+      c.drawPath(
+          Path()
+            ..moveTo(base.dx, base.dy)
+            ..quadraticBezierTo(base.dx + dir.dx * len * .5, base.dy + dir.dy * len * .5 - 1, base.dx + dir.dx * len * .8, base.dy + dir.dy * len * .8),
+          _l(const Color(0x88FFFFFF), 1.4));
+    }
   }
 
   // ---------------- patas ----------------
