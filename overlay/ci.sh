@@ -34,7 +34,7 @@ perms = ('<uses-permission android:name="android.permission.POST_NOTIFICATIONS" 
          '    ')
 q = ('<intent>\n            <action android:name="android.intent.action.MAIN" />\n'
      '            <category android:name="android.intent.category.LAUNCHER" />\n        </intent>\n        ')
-m = m.replace('android:label="focuspet"', 'android:label="FOKUS ONIT!"')
+m = m.replace('android:label="focuspet"', 'android:label="FOKUS ON!"')
 if 'BlockerService' not in m:
     m = m.replace('<application', perms + '<application', 1)
     m = m.replace('</application>', s + '    </application>')

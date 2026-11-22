@@ -47,10 +47,10 @@ object EndAlarm {
         null
     }
 
-    // Vibra YA (antes de tocar "No molestar" o avisos): ~60 s como alarma
+    // 2 vibraciones largas como alarma (se detiene sola)
     fun buzz(ctx: Context) {
         val v = vibrator(ctx) ?: return
-        val t = LongArray(41) { if (it == 0) 0L else if (it % 2 == 1) 2500L else 500L }
+        val t = longArrayOf(0, 900, 450, 900) // 2 vibraciones largas y se detiene
         var ok = false
         if (Build.VERSION.SDK_INT >= 26) {
             try {
@@ -84,21 +84,19 @@ object EndAlarm {
     fun notifyEnd(ctx: Context, mode: Int, vib: Boolean) {
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val open = PendingIntent.getActivity(ctx, 11, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-        val pat = longArrayOf(0, 1500, 400, 1500, 400, 1500)
         val b: android.app.Notification.Builder
         if (Build.VERSION.SDK_INT >= 26) {
-            val ch = android.app.NotificationChannel("fin_alarma_v3", "Fin de sesión", android.app.NotificationManager.IMPORTANCE_HIGH)
-            ch.enableVibration(true)
-            ch.vibrationPattern = pat
+            val ch = android.app.NotificationChannel("fin_alarma_v4", "Fin de sesión", android.app.NotificationManager.IMPORTANCE_HIGH)
+            ch.enableVibration(false) // vibra solo buzz(): exactamente 2 largas
             try { ch.setBypassDnd(true) } catch (e: Exception) { }
             nm.createNotificationChannel(ch)
-            b = android.app.Notification.Builder(ctx, "fin_alarma_v3")
+            b = android.app.Notification.Builder(ctx, "fin_alarma_v4")
         } else {
-            b = android.app.Notification.Builder(ctx).setVibrate(pat).setPriority(android.app.Notification.PRIORITY_MAX)
+            b = android.app.Notification.Builder(ctx).setPriority(android.app.Notification.PRIORITY_MAX)
         }
         b.setSmallIcon(ctx.applicationInfo.icon)
             .setContentTitle(if (mode == 2) "☀️ ¡Buenos días!" else "🎉 ¡Sesión terminada!")
-            .setContentText("Abre FOKUS ONIT! para cobrar tus monedas")
+            .setContentText("Abre FOKUS ON! para cobrar tus monedas")
             .setCategory(android.app.Notification.CATEGORY_ALARM).setContentIntent(open).setAutoCancel(true)
         nm.notify(20, b.build())
     }
@@ -119,10 +117,17 @@ object EndAlarm {
 
     // Cada paso va por separado: si uno falla, los demás se hacen igual
     fun fire(ctx: Context, vib: Boolean, mode: Int) {
+        // evita repetir si la alarma y la app avisan a la vez
+        val p = ctx.getSharedPreferences("focuspet_native", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        synchronized(this) {
+            if (now - p.getLong("last_fire", 0L) < 20_000L) return
+            p.edit().putLong("last_fire", now).apply()
+        }
         try { Dnd.disable(ctx) } catch (e: Throwable) { }
         waitDndOff(ctx)
-        try { notifyEnd(ctx, mode, vib) } catch (e: Throwable) { }
         if (vib) buzz(ctx)
+        try { notifyEnd(ctx, mode, vib) } catch (e: Throwable) { }
     }
 }
 
@@ -131,8 +136,6 @@ class EndReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         val vib = intent?.getBooleanExtra("v", true) != false
         val mode = intent?.getIntExtra("mode", 0) ?: 0
-        // vibra al instante, sin esperar a nada
-        if (vib) EndAlarm.buzz(app)
         val pr = goAsync()
         val wl = (app.getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "focuspet:end")

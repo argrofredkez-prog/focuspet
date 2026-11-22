@@ -560,32 +560,38 @@ class _AnimalPainter extends CustomPainter {
   }
 
   // ---------------- crin arcoíris (unicornio) ----------------
-  // crin arcoíris flameante (solo en el lado derecho)
+  // crin arcoíris flameante, solo en el lado derecho: nace dentro de la cabeza (sin huecos) y ondula
   void _flameMane(Canvas c) {
     const cols = [
       Color(0xFFFF6B8B), Color(0xFFFFB04C), Color(0xFFFFE066), Color(0xFF7DDFA8),
       Color(0xFF7ED6FF), Color(0xFFB59CFF), Color(0xFFFFA8CC)
     ];
     final tt = DateTime.now().millisecondsSinceEpoch / 1000.0;
-    for (int i = 0; i < cols.length; i++) {
-      final base = Offset(63.0 + i * 1.8, 13.0 + i * 6.2);
-      final ang = -0.95 + i * 0.2 + 0.12 * sin(tt * 3 + i * 0.7);
-      final len = 24.0 - i * 1.4 + 2.0 * sin(tt * 4 + i);
-      final dir = Offset(cos(ang), sin(ang));
-      final nrm = Offset(-dir.dy, dir.dx);
-      final tip = base + dir * len;
+    void tongue(int i, double u, double lenK, Color col, double w) {
+      final th = -1.15 + u * 1.9;
+      final base = Offset(50 + 26 * .86 * cos(th), 33 + 23 * .86 * sin(th));
+      final ang = -0.7 + u * 1.0 + 0.14 * sin(tt * 2.6 - i * .55);
+      final len = (30.0 - u * 6) * lenK + 2.5 * sin(tt * 3.4 - i * .7);
+      final wob = 3.4 * sin(tt * 3.0 - i * .8);
+      final d = Offset(cos(ang), sin(ang));
+      final n = Offset(-d.dy, d.dx);
+      Offset q(double f, double side) => base + d * (len * f) + n * side;
+      final a0 = q(0, -w), a1 = q(.3, -w * 1.5 + wob * .4), a2 = q(.68, wob * 1.2 - 2), tip = q(1, wob * 2);
+      final b1 = q(.7, wob + 2.5), b2 = q(.32, w * 1.6 + wob * .3), b3 = q(0, w);
       final fl = Path()
-        ..moveTo(base.dx - nrm.dx * 3.4, base.dy - nrm.dy * 3.4)
-        ..quadraticBezierTo(base.dx + dir.dx * len * .55 - nrm.dx * 6, base.dy + dir.dy * len * .55 - nrm.dy * 6, tip.dx, tip.dy)
-        ..quadraticBezierTo(base.dx + dir.dx * len * .5 + nrm.dx * 5, base.dy + dir.dy * len * .5 + nrm.dy * 5, base.dx + nrm.dx * 3.4, base.dy + nrm.dy * 3.4)
+        ..moveTo(a0.dx, a0.dy)
+        ..cubicTo(a1.dx, a1.dy, a2.dx, a2.dy, tip.dx, tip.dy)
+        ..cubicTo(b1.dx, b1.dy, b2.dx, b2.dy, b3.dx, b3.dy)
         ..close();
-      c.drawPath(fl, _f(cols[i]));
-      c.drawPath(fl, _l(p.line, 0.9));
-      c.drawPath(
-          Path()
-            ..moveTo(base.dx, base.dy)
-            ..quadraticBezierTo(base.dx + dir.dx * len * .5, base.dy + dir.dy * len * .5 - 1, base.dx + dir.dx * len * .8, base.dy + dir.dy * len * .8),
-          _l(const Color(0x88FFFFFF), 1.4));
+      c.drawPath(fl, _f(col));
+      c.drawPath(fl, _l(Color.lerp(col, Colors.black, .35)!, 0.8));
+    }
+
+    for (int i = 0; i < 9; i++) {
+      tongue(i, i / 8, 1.0, cols[i % cols.length], 4.4);
+    }
+    for (int i = 0; i < 6; i++) {
+      tongue(i + 9, (i + .5) / 6, .62, Color.lerp(cols[(i + 3) % cols.length], Colors.white, .45)!, 2.6);
     }
   }
 

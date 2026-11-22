@@ -80,7 +80,7 @@ class FocusPetApp extends StatelessWidget {
         valueListenable: darkMode,
         builder: (_, dark, __) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'FOKUS ONIT!',
+          title: 'FOKUS ON!',
           theme: ThemeData(useMaterial3: true),
           darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
@@ -111,6 +111,8 @@ class _HomeState extends State<HomeScreen> {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     syncPetReminders(); // reprograma los avisos de las mascotas
+    _ch.invokeMethod('cancelReminder', 2); // entrenar ya no existe
+    _ch.invokeMethod('cancelReminder', 6);
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
@@ -154,7 +156,29 @@ class _HomeState extends State<HomeScreen> {
     showModalBottomSheet(
       context: context,
       builder: (c) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+              leading: const Text('🧠', style: TextStyle(fontSize: 26)),
+              title: const Text('Curva del olvido'),
+              subtitle: Text(store.dueCount > 0 ? '${store.dueCount} para repasar hoy' : 'Nada pendiente'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(const ReviewScreen());
+              }),
+          ListTile(
+              leading: const Text('💬', style: TextStyle(fontSize: 26)),
+              title: const Text('Frases'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(PhrasesScreen(animal: animal));
+              }),
+          ListTile(
+              leading: const Text('🐾', style: TextStyle(fontSize: 26)),
+              title: const Text('Mascota y avisos'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(PetsScreen(animal: animal));
+              }),
           ListTile(
               leading: const Text('📊', style: TextStyle(fontSize: 26)),
               title: const Text('Mi día'),
@@ -183,7 +207,7 @@ class _HomeState extends State<HomeScreen> {
                 Navigator.pop(c);
                 _go(const CycleScreen());
               }),
-        ]),
+        ])),
       ),
     );
   }
@@ -197,7 +221,7 @@ class _HomeState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (int i = 0; i < 3; i++)
+                    for (final i in const [0, 2])
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Text(
@@ -224,7 +248,7 @@ class _HomeState extends State<HomeScreen> {
           builder: (_) => AlertDialog(
                 title: const Text('Activa el bloqueo 🔒'),
                 content: const Text(
-                    'En Accesibilidad busca "FOKUS ONIT!" y actívalo. Solo se usa para saber qué app está abierta.'),
+                    'En Accesibilidad busca "FOKUS ON!" y actívalo. Solo se usa para saber qué app está abierta.'),
                 actions: [
                   TextButton(
                       onPressed: () {
@@ -243,7 +267,7 @@ class _HomeState extends State<HomeScreen> {
           builder: (c) => AlertDialog(
                 title: const Text('Bloquear notificaciones 🔕'),
                 content: const Text(
-                    'Para silenciar todo menos las llamadas, permite a FOKUS ONIT! el acceso a "No molestar".'),
+                    'Para silenciar todo menos las llamadas, permite a FOKUS ON! el acceso a "No molestar".'),
                 actions: [
                   TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Abrir ajustes')),
                   TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Seguir sin bloquear')),
@@ -295,10 +319,18 @@ class _HomeState extends State<HomeScreen> {
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ink)),
                 const Spacer(),
                 icon('🛒', () => _go(ShopScreen(animal: animal))),
-                icon('➕', _more),
-                icon(store.dueCount > 0 ? '🧠${store.dueCount}' : '🧠', () => _go(const ReviewScreen())),
-                icon('💬', () => _go(PhrasesScreen(animal: animal))),
-                icon('🐾', () => _go(PetsScreen(animal: animal))),
+                IconButton(
+                    onPressed: _more,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
+                    icon: const SizedBox(
+                        width: 34,
+                        height: 30,
+                        child: Stack(clipBehavior: Clip.none, children: [
+                          Center(child: Text('❤️', style: TextStyle(fontSize: 24))),
+                          Positioned(right: -2, top: -4, child: Text('✨', style: TextStyle(fontSize: 13))),
+                          Positioned(left: -2, bottom: -3, child: Text('✨', style: TextStyle(fontSize: 10))),
+                        ]))),
                 icon('⚙️', () => _go(const SettingsScreen())),
               ]),
               PetStage(
@@ -334,9 +366,9 @@ class _HomeState extends State<HomeScreen> {
                       }),
               ]),
               Wrap(spacing: 8, children: [
-                for (int i = 0; i < 3; i++)
+                for (final i in const [0, 2])
                   ChoiceChip(
-                      label: Text('${modeEmoji[i]} ${modeNames[i]}'),
+                      label: Text(i == 0 ? '📚 GO AHEAD!' : '${modeEmoji[i]} ${modeNames[i]}'),
                       selected: mode == i,
                       onSelected: (_) => setState(() {
                             mode = i;
@@ -611,7 +643,7 @@ class _SettingsState extends State<SettingsScreen> {
             setState(() {});
           },
         ),
-        for (final md in [0, 1])
+        for (final md in [0])
           ListTile(
             title: Text('Apps permitidas al ${md == 0 ? 'estudiar 📚' : 'entrenar 🏋️'} (${store.allowedFor(md).length}/3)'),
             subtitle: Text(store.allowedFor(md).isEmpty
@@ -625,8 +657,6 @@ class _SettingsState extends State<SettingsScreen> {
           ),
         _remTile(3, 'estudiar 📚 · 1.º', ''),
         _remTile(7, 'estudiar 📚 · 2.º', ''),
-        _remTile(2, 'entrenar 🏋️ · 1.º', ''),
-        _remTile(6, 'entrenar 🏋️ · 2.º', ''),
         _remTile(1, 'dormir 🌙 · 1.º', ' (menos viernes y sábado)'),
         _remTile(5, 'dormir 🌙 · 2.º', ' (menos viernes y sábado)'),
         _remTile(4, 'repasar 🧠', ''),
@@ -950,13 +980,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     const extra = '';
     if (!mounted) return;
     setState(() => emotion = 'happy');
-    if (widget.mode != 2) {
-      for (int i = 0; i < 4; i++) {
-        HapticFeedback.heavyImpact();
-        await Future.delayed(const Duration(milliseconds: 350));
-      }
-    }
-    await Future.delayed(const Duration(milliseconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 3200));
     if (!mounted) return;
     final again = await showDialog<bool>(
         context: context,
