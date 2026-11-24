@@ -443,7 +443,7 @@ class _PetStageState extends State<PetStage> with SingleTickerProviderStateMixin
 
   // movimiento suave: círculos grandes que cambian de sentido y de tamaño
   void _onTick(Duration d) {
-    final dt = ((d - _last).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    final dt = ((d - _last).inMicroseconds / 1e6).clamp(0.0, 0.05).toDouble();
     _last = d;
     _el = d.inMicroseconds / 1e6;
     if (_el > next) {

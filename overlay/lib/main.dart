@@ -8,6 +8,7 @@ import 'animal_background.dart';
 import 'data.dart';
 import 'focus_animal.dart';
 import 'pets.dart';
+import 'pro.dart';
 import 'game.dart';
 import 'cycle.dart';
 import 'mood.dart';
@@ -25,36 +26,63 @@ String _fmt(int s) =>
     '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
 
 /// Elige hasta 3 apps permitidas para un estado (se hace antes de empezar la sesión).
-Future<void> pickApps(BuildContext context, int mode) async {
+Future<List<Map<String, String>>> _installedApps() async {
   final raw = await _ch.invokeMethod<List<dynamic>>('getApps') ?? <dynamic>[];
-  final apps = raw.map((e) => Map<String, String>.from(e as Map)).toList();
-  final sel = store.allowedFor(mode).toSet();
+  return raw.map((e) => Map<String, String>.from(e as Map)).toList();
+}
+
+// quita de las apps permitidas las que ya no existen (ocupaban hueco sin verse)
+Future<void> pruneAllowed() async {
+  try {
+    final pkgs = {for (final a in await _installedApps()) a['pkg']!};
+    if (pkgs.isEmpty) return;
+    for (final md in const [0, 1]) {
+      final cur = store.allowedFor(md);
+      final ok = [for (final k in cur) if (pkgs.contains(k.split('|').first)) k];
+      if (ok.length != cur.length) store.setAllowed(md, ok);
+    }
+  } catch (_) {}
+}
+
+Future<void> pickApps(BuildContext context, int mode) async {
+  final apps = await _installedApps();
+  final pkgs = {for (final a in apps) a['pkg']!};
+  // solo cuentan las apps instaladas; marcar otra con 3 elegidas sustituye a la más antigua
+  final sel = <String>{for (final k in store.allowedFor(mode)) if (pkgs.contains(k.split('|').first)) k.split('|').first};
   if (!context.mounted) return;
   await showDialog(
       context: context,
       builder: (c) => StatefulBuilder(
             builder: (c, setS) => AlertDialog(
-              title: Text('${modeNames[mode]}: hasta 3 apps (${sel.length}/3)'),
+              title: Text('${mode == 0 ? 'GO AHEAD!' : modeNames[mode]}: apps permitidas (${sel.length}/3)'),
               content: SizedBox(
                 width: double.maxFinite,
-                height: 360,
+                height: 380,
                 child: apps.isEmpty
                     ? const Center(child: Text('No se han encontrado apps'))
-                    : ListView(children: [
-                        for (final a in apps)
-                          CheckboxListTile(
-                              title: Text(a['name']!),
-                              value: sel.contains('${a['pkg']}|${a['name']}'),
-                              onChanged: (v) {
-                                final k = '${a['pkg']}|${a['name']}';
-                                setS(() {
-                                  if (v == true) {
-                                    if (sel.length < 3) sel.add(k);
-                                  } else {
-                                    sel.remove(k);
-                                  }
-                                });
-                              }),
+                    : Column(children: [
+                        const Text('Elige hasta 3. Con 3 marcadas, elegir otra sustituye a la primera.',
+                            style: TextStyle(fontSize: 12)),
+                        Expanded(
+                          child: ListView(children: [
+                            for (final a in apps)
+                              CheckboxListTile(
+                                  dense: true,
+                                  title: Text(a['name']!),
+                                  value: sel.contains(a['pkg']),
+                                  onChanged: (v) {
+                                    final k = a['pkg']!;
+                                    setS(() {
+                                      if (v == true) {
+                                        if (sel.length >= 3) sel.remove(sel.first);
+                                        sel.add(k);
+                                      } else {
+                                        sel.remove(k);
+                                      }
+                                    });
+                                  }),
+                          ]),
+                        ),
                       ]),
               ),
               actions: [
@@ -62,7 +90,7 @@ Future<void> pickApps(BuildContext context, int mode) async {
               ],
             ),
           ));
-  store.setAllowed(mode, sel.toList());
+  store.setAllowed(mode, [for (final a in apps) if (sel.contains(a['pkg'])) '${a['pkg']}|${a['name']}']);
 }
 
 Future<void> main() async {
@@ -73,6 +101,17 @@ Future<void> main() async {
   runApp(const FocusPetApp());
 }
 
+ThemeData _theme(Brightness b) => ThemeData(
+      useMaterial3: true,
+      brightness: b,
+      colorSchemeSeed: const Color(0xFF7C5CFF),
+      appBarTheme: const AppBarTheme(centerTitle: true),
+      filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(shape: const StadiumBorder())),
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: ZoomPageTransitionsBuilder(),
+      }),
+    );
+
 class FocusPetApp extends StatelessWidget {
   const FocusPetApp({super.key});
   @override
@@ -81,8 +120,8 @@ class FocusPetApp extends StatelessWidget {
         builder: (_, dark, __) => MaterialApp(
           debugShowCheckedModeBanner: false,
           title: 'FOKUS ON!',
-          theme: ThemeData(useMaterial3: true),
-          darkTheme: ThemeData(useMaterial3: true, brightness: Brightness.dark),
+          theme: _theme(Brightness.light),
+          darkTheme: _theme(Brightness.dark),
           themeMode: dark ? ThemeMode.dark : ThemeMode.light,
           home: const HomeScreen(),
         ),
@@ -111,6 +150,7 @@ class _HomeState extends State<HomeScreen> {
     super.initState();
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     syncPetReminders(); // reprograma los avisos de las mascotas
+    pruneAllowed();
     _ch.invokeMethod('cancelReminder', 2); // entrenar ya no existe
     _ch.invokeMethod('cancelReminder', 6);
     _ch.invokeMethod('setBrightness', store.bright);
@@ -157,6 +197,14 @@ class _HomeState extends State<HomeScreen> {
       context: context,
       builder: (c) => SafeArea(
         child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+              leading: const Text('🏆', style: TextStyle(fontSize: 26)),
+              title: const Text('Progreso y logros'),
+              subtitle: Text('🔥 ${streakDays()} días de racha · meta ${fmtMin(goalMin)}'),
+              onTap: () {
+                Navigator.pop(c);
+                _go(const ProgressScreen());
+              }),
           ListTile(
               leading: const Text('🧠', style: TextStyle(fontSize: 26)),
               title: const Text('Curva del olvido'),
@@ -240,6 +288,10 @@ class _HomeState extends State<HomeScreen> {
   }
 
   Future<void> _start() async {
+    if (!store.strict && mode != 2 && store.allowedFor(mode).isEmpty) {
+      await pickApps(context, mode);
+      if (!mounted) return;
+    }
     final ok = await _ch.invokeMethod<bool>('isEnabled') ?? false;
     if (!ok) {
       if (!mounted) return;
@@ -333,6 +385,7 @@ class _HomeState extends State<HomeScreen> {
                         ]))),
                 icon('⚙️', () => _go(const SettingsScreen())),
               ]),
+              GoalBar(ink: ink, onTap: () => _go(const ProgressScreen())),
               PetStage(
                 animal: animal,
                 ink: ink,
@@ -385,6 +438,14 @@ class _HomeState extends State<HomeScreen> {
                   activeColor: ink,
                   inactiveColor: Colors.white54,
                   onChanged: (v) => setState(() => minutes = v)),
+              Wrap(spacing: 6, alignment: WrapAlignment.center, children: [
+                for (final pm in (mode == 2 ? const [360, 420, 480, 540] : const [15, 25, 45, 60, 90, 120]))
+                  ChoiceChip(
+                      label: Text(_dur(pm), style: const TextStyle(fontSize: 12)),
+                      selected: minutes.round() == pm,
+                      visualDensity: VisualDensity.compact,
+                      onSelected: (_) => setState(() => minutes = pm.toDouble())),
+              ]),
               if (mode == 2)
                 Text('🔒 Todo bloqueado mientras duermes',
                     style: TextStyle(fontSize: 14, color: ink))
@@ -400,9 +461,13 @@ class _HomeState extends State<HomeScreen> {
                   ChoiceChip(
                       label: const Text('🔓 No estricto'),
                       selected: !store.strict,
-                      onSelected: (_) {
+                      onSelected: (_) async {
                         store.p.setBool('strict', false);
                         setState(() {});
+                        if (store.allowedFor(mode).isEmpty) {
+                          await pickApps(context, mode);
+                          if (mounted) setState(() {});
+                        }
                       }),
                   if (!store.strict)
                     ActionChip(
@@ -412,9 +477,23 @@ class _HomeState extends State<HomeScreen> {
                           if (mounted) setState(() {});
                         }),
                 ]),
-              if (!store.strict && mode != 2)
-                Text('Mitad de monedas · elige las apps antes de empezar',
+              if (!store.strict && mode != 2) ...[
+                Wrap(spacing: 6, alignment: WrapAlignment.center, children: [
+                  for (final k in store.allowedFor(mode))
+                    InputChip(
+                        label: Text(k.split('|').last),
+                        onPressed: () async {
+                          await pickApps(context, mode);
+                          if (mounted) setState(() {});
+                        },
+                        onDeleted: () {
+                          store.setAllowed(mode, [for (final x in store.allowedFor(mode)) if (x != k) x]);
+                          setState(() {});
+                        }),
+                ]),
+                Text('Mitad de monedas · toca una app para cambiarla',
                     style: TextStyle(fontSize: 12, color: ink)),
+              ],
               const SizedBox(height: 8),
               FilledButton(
                   style: FilledButton.styleFrom(
@@ -988,6 +1067,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
               title: Text(widget.mode == 2 ? '¡Buenos días! ☀️' : '¡Sesión completada! 🎉'),
               content: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text('Has ganado $earned 🪙$extra'),
+                if (widget.mode != 2) Text('Hoy ${fmtMin(studyOn(DateTime.now()))} de ${fmtMin(goalMin)} · 🔥 ${streakDays()} días'),
                 if (loadPet(widget.animal) != null) ComicBubble(text: petPhrase()),
               ]),
               actions: [
