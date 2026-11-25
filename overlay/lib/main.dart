@@ -36,7 +36,7 @@ Future<void> pruneAllowed() async {
   try {
     final pkgs = {for (final a in await _installedApps()) a['pkg']!};
     if (pkgs.isEmpty) return;
-    for (final md in const [0, 1]) {
+    for (final md in const [0]) {
       final cur = store.allowedFor(md);
       final ok = [for (final k in cur) if (pkgs.contains(k.split('|').first)) k];
       if (ok.length != cur.length) store.setAllowed(md, ok);
@@ -151,14 +151,17 @@ class _HomeState extends State<HomeScreen> {
     _ch.invokeMethod('setupBedtime'); // pide permiso de notificaciones
     syncPetReminders(); // reprograma los avisos de las mascotas
     pruneAllowed();
-    _ch.invokeMethod('cancelReminder', 2); // entrenar ya no existe
+    for (final k in const ['r2', 'r6', 'allowed_1', 'allowed']) {
+      store.p.remove(k); // restos del modo entrenar
+    }
+    _ch.invokeMethod('cancelReminder', 2);
     _ch.invokeMethod('cancelReminder', 6);
     _ch.invokeMethod('setBrightness', store.bright);
     _ch.invokeMethod('dndRestore');
     _clock = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
-    for (final id in [1, 2, 3, 4, 5, 6, 7, 8]) {
+    for (final id in [1, 3, 4, 5, 7, 8]) {
       final v = store.rem(id);
       if (v >= 0) _ch.invokeMethod('setReminder', {'id': id, 'h': v ~/ 60, 'm': v % 60});
     }
@@ -438,14 +441,6 @@ class _HomeState extends State<HomeScreen> {
                   activeColor: ink,
                   inactiveColor: Colors.white54,
                   onChanged: (v) => setState(() => minutes = v)),
-              Wrap(spacing: 6, alignment: WrapAlignment.center, children: [
-                for (final pm in (mode == 2 ? const [360, 420, 480, 540] : const [15, 25, 45, 60, 90, 120]))
-                  ChoiceChip(
-                      label: Text(_dur(pm), style: const TextStyle(fontSize: 12)),
-                      selected: minutes.round() == pm,
-                      visualDensity: VisualDensity.compact,
-                      onSelected: (_) => setState(() => minutes = pm.toDouble())),
-              ]),
               if (mode == 2)
                 Text('🔒 Todo bloqueado mientras duermes',
                     style: TextStyle(fontSize: 14, color: ink))
@@ -724,7 +719,7 @@ class _SettingsState extends State<SettingsScreen> {
         ),
         for (final md in [0])
           ListTile(
-            title: Text('Apps permitidas al ${md == 0 ? 'estudiar 📚' : 'entrenar 🏋️'} (${store.allowedFor(md).length}/3)'),
+            title: Text('Apps permitidas al estudiar 📚 (${store.allowedFor(md).length}/3)'),
             subtitle: Text(store.allowedFor(md).isEmpty
                 ? 'Toca para elegir (se usan en modo no estricto)'
                 : store.allowedFor(md).map((e) => e.substring(e.indexOf('|') + 1)).join(', ')),
@@ -834,7 +829,7 @@ class FocusScreen extends StatefulWidget {
   final int minutes;
   final List<String> phrases;
   final bool strict;
-  final int mode; // 0 estudiar, 1 entrenar, 2 dormir
+  final int mode; // 0 estudiar, 2 dormir
   const FocusScreen({
     super.key,
     required this.animal,
@@ -1213,7 +1208,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
                   Text(
                       paused
                           ? 'Pausa: ${_fmt(pauseMinutes * 60 - DateTime.now().difference(pauseStart!).inSeconds)}'
-                          : ['Estudiando 📚', 'Entrenando 💪', 'Durmiendo 😴 Buenas noches'][widget.mode],
+                          : ['Estudiando 📚', 'Estudiando 📚', 'Durmiendo 😴 Buenas noches'][widget.mode],
                       style: TextStyle(fontSize: 16, color: ink)),
                   const SizedBox(height: 12),
                   const SizedBox(height: 12),

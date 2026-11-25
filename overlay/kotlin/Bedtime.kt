@@ -11,7 +11,7 @@ import android.content.Intent
 import android.os.Build
 import java.util.Calendar
 
-// Avisos diarios: id 1 = dormir, 2 = entrenar, 3 = estudiar
+// Avisos diarios: id 1 = dormir, 3 = estudiar, 4 = repasar, 8 = ánimo
 object Bedtime {
     private const val CHANNEL = "bedtime"
 
@@ -48,8 +48,18 @@ object Bedtime {
         prefs(ctx).edit().remove("r$id").apply()
     }
 
+    // borra cualquier aviso de entrenar que quedara programado o en pantalla
+    fun purgeTraining(ctx: Context) {
+        cancel(ctx, 2)
+        cancel(ctx, 6)
+        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.cancel(2)
+        nm.cancel(6)
+    }
+
     fun restoreAll(ctx: Context) {
         for (id in 1..8) {
+            if (id == 2 || id == 6) continue
             val t = prefs(ctx).getInt("r$id", -1)
             if (t >= 0) schedule(ctx, id, t / 60, t % 60)
         }
@@ -83,8 +93,12 @@ class BedtimeReceiver : BroadcastReceiver() {
         val id = intent?.getIntExtra("id", 1) ?: 1
         val h = intent?.getIntExtra("h", 23) ?: 23
         val m = intent?.getIntExtra("m", 30) ?: 30
+        if (id == 2 || id == 6) { // el modo entrenar ya no existe
+            Bedtime.cancel(context, id)
+            return
+        }
         val d = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
-        val kind = if (id in 5..7) id - 4 else id // 5-7 = 2.º aviso de dormir/entrenar/estudiar
+        val kind = if (id in 5..7) id - 4 else id // 5 y 7 = 2.º aviso de dormir/estudiar
         when (kind) {
             1 -> {
                 // Viernes y sábado por la noche no se avisa (fin de semana)
@@ -92,7 +106,6 @@ class BedtimeReceiver : BroadcastReceiver() {
                     Bedtime.notifyText(context, id, "🌙 Hora de dormir", "Abre la app y empieza el modo dormir 😴")
                 }
             }
-            2 -> Bedtime.notifyText(context, id, "🏋️ Hora de entrenar", "¡Muévete un poco, tu animal y tú lo merecéis!")
             4 -> Bedtime.notifyText(context, id, "🧠 Hora de repasar", "Mira qué temas te tocan repasar hoy")
             8 -> Bedtime.notifyText(context, id, "😊 ¿Cómo te sientes hoy?", "Registra tu estado de ánimo en FOKUS ON!")
             else -> Bedtime.notifyText(context, id, "📚 Hora de estudiar", "Abre la app y empieza tu sesión de estudio ✨")

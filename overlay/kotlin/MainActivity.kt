@@ -122,6 +122,7 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     "setupBedtime" -> {
+                        Bedtime.purgeTraining(applicationContext)
                         if (Build.VERSION.SDK_INT >= 33 &&
                             checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED
                         ) {

@@ -138,8 +138,8 @@ const slotNames = {
   'body': 'cuerpo',
   'feet': 'pies',
 };
-const modeNames = ['Estudiar', 'Entrenar', 'Dormir'];
-const modeEmoji = ['📚', '🏋️', '😴'];
+const modeNames = ['Estudiar', 'Estudiar', 'Dormir'];
+const modeEmoji = ['📚', '📚', '😴'];
 const stageNames = ['Bebé', 'Joven', 'Adulto'];
 const stageScale = [0.72, 0.86, 1.0];
 int stageOf(int xp) => xp >= 150 ? 2 : (xp >= 50 ? 1 : 0);
@@ -168,9 +168,9 @@ class Store {
   }
 
   bool get strict => p.getBool('strict') ?? true;
-  // apps permitidas en modo no estricto, por estado (0 estudiar, 1 entrenar)
+  // apps permitidas en modo no estricto, por estado (0 estudiar)
   List<String> allowedFor(int mode) =>
-      p.getStringList('allowed_$mode') ?? p.getStringList('allowed') ?? <String>[];
+      p.getStringList('allowed_$mode') ?? <String>[];
   void setAllowed(int mode, List<String> l) {
     p.setStringList('allowed_$mode', l);
   }
@@ -178,11 +178,11 @@ class Store {
   double get bright => p.getDouble('bright') ?? 0.6;
   bool get blockNotifs => p.getBool('dnd') ?? true;
 
-  // Avisos diarios (minutos del día; -1 = desactivado). 1 dormir, 2 entrenar, 3 estudiar, 4 repasar;
-  // 5, 6 y 7 son el 2.º aviso de dormir, entrenar y estudiar
+  // Avisos diarios (minutos del día; -1 = desactivado). 1 dormir, 3 estudiar, 4 repasar;
+  // 5 y 7 son el 2.º aviso de dormir y estudiar
   int rem(int id) => p.getInt('r$id') ?? (id == 1 ? 1410 : -1);
 
-  // Minutos por estado (0 estudiar, 1 entrenar, 2 dormir)
+  // Minutos por estado (0 estudiar, 2 dormir)
   String _day() {
     final n = DateTime.now();
     return '${n.year}${n.month}${n.day}';

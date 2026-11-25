@@ -23,7 +23,7 @@ const _pals = {
   Animal.cocodrilo: _Pal(Color(0xFF6CCB7A), Color(0xFFA6E8A8), Color(0xFFF5E6B8), Color(0xFF2F7D4F), Color(0xFFFF9F43)),
 };
 
-/// Animal de cuerpo completo. mode: -1 neutro, 0 estudiar, 1 entrenar, 2 dormir.
+/// Animal de cuerpo completo. mode: -1 neutro, 0 estudiar, 2 dormir.
 class FocusAnimal extends StatefulWidget {
   final Animal animal;
   final double size;
@@ -104,7 +104,7 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
                       ? _StarsPainter(_c.value)
                       : _AuraPainter(_c.value, color)),
             Transform.translate(
-              offset: Offset(0, widget.mode == 1 ? -8 * wave.abs() : 0),
+              offset: Offset.zero,
               child: Transform.scale(
                 scale: widget.scale * (1 + 0.02 * wave),
                 alignment: const Alignment(0, 0.6),
@@ -235,8 +235,6 @@ class _AnimalPainter extends CustomPainter {
       ? Offset(50 - (3 + 11 * (0.5 + 0.5 * cos(clap * 2 * pi))), 62)
       : emo == 'fight'
       ? Offset(23 + 3 * sin(DateTime.now().millisecondsSinceEpoch / 140), 34)
-      : mode == 1
-      ? const Offset(23, 41)
       : (mode == 0
           ? const Offset(37, 62)
           : (mode == 2 ? const Offset(40, 73) : const Offset(22, 56)));
@@ -432,6 +430,7 @@ class _AnimalPainter extends CustomPainter {
     _feet(c);
     _boots(c);
     _body(c);
+    _armLines(c);
     _clothes(c);
     _skirts(c);
     _sleeves(c);
@@ -442,7 +441,7 @@ class _AnimalPainter extends CustomPainter {
       _book(c);
       c.restore();
     }
-    _arms(c);
+    _paws(c);
     _claps(c);
     _ears(c);
     _head(c);
@@ -694,7 +693,7 @@ class _AnimalPainter extends CustomPainter {
   }
 
   // ---------------- brazos ----------------
-  void _arms(Canvas c) {
+  void _armLines(Canvas c) {
     final hl = _hand;
     _both(c, () {
       c.drawLine(const Offset(34, 58), hl, _l(p.line, 9));
@@ -703,20 +702,13 @@ class _AnimalPainter extends CustomPainter {
         final mid = Offset.lerp(const Offset(34, 58), hl, 0.5)!;
         c.drawLine(mid.translate(-3.5, 0), mid.translate(3.5, 0), _l(const Color(0xFF3A2A1E), 1.8));
       }
-      _paw(c, hl);
     });
-    if (mode == 1 && clap < 0) {
-      _both(c, () {
-        c.drawLine(hl.translate(-10, 0), hl.translate(10, 0), _l(const Color(0xFF8A8FA3), 2.4));
-        for (final dx in [-6.5, 6.5]) {
-          c.drawRRect(
-              RRect.fromRectAndRadius(
-                  Rect.fromCenter(center: hl.translate(dx, 0), width: 5, height: 14),
-                  const Radius.circular(1.5)),
-              _f(const Color(0xFF4A4F66)));
-        }
-      });
-    }
+  }
+
+  // pezuñas / zarpas: por encima de las mangas, asoman por el puño
+  void _paws(Canvas c) {
+    final hl = _hand;
+    _both(c, () => _paw(c, hl));
   }
 
   // ---------------- orejas ----------------
@@ -898,7 +890,7 @@ class _AnimalPainter extends CustomPainter {
           c.drawLine(e.translate(-4, -6), e.translate(-5.8, -8.4), _l(ink, 0.9));
         }
       }
-      if ((mode == 1 || emo == 'focus' || emo == 'fight') && emo != 'happy' && emo != 'sad') {
+      if ((emo == 'focus' || emo == 'fight') && emo != 'happy' && emo != 'sad') {
         c.drawLine(const Offset(33.5, 24.5), const Offset(43.5, 27), _l(ink, 1.8));
       } else if (emo == 'sad') {
         c.drawLine(const Offset(34, 26.5), const Offset(43.5, 22.5), _l(ink, 1.8));
@@ -935,11 +927,6 @@ class _AnimalPainter extends CustomPainter {
           false, _l(ink, 1.5));
     } else if (emo == 'focus') {
       c.drawLine(Offset(46.5, my), Offset(53.5, my), _l(ink, 1.5));
-    } else if (mode == 1) {
-      c.drawOval(Rect.fromCenter(center: Offset(50, my), width: 8, height: 5.5),
-          _f(const Color(0xFF7A2E45)));
-      c.drawOval(Rect.fromCenter(center: Offset(50, my + 1.2), width: 4.5, height: 2.4),
-          _f(const Color(0xFFFF8FAB)));
     } else {
       c.drawArc(Rect.fromCenter(center: Offset(50, my - 1), width: 9, height: 5), 0.2, pi - 0.4,
           false, _l(ink, 1.3));
@@ -970,21 +957,6 @@ class _AnimalPainter extends CustomPainter {
       });
       c.drawArc(Rect.fromCenter(center: const Offset(50, 31), width: 6, height: 4), pi, pi, false,
           _l(const Color(0xFF4A5A78), 1.2));
-    } else if (mode == 1) {
-      // cinta elástica en la frente
-      final band = Path()
-        ..moveTo(26.5, 26)
-        ..quadraticBezierTo(50, 14, 73.5, 26);
-      c.drawPath(band, _l(const Color(0xFFE8445A), 6));
-      c.drawPath(band, _l(const Color(0x66FFFFFF), 1.4));
-      c.drawCircle(const Offset(70, 24.5), 3, _f(const Color(0xFFB82E44)));
-      c.drawPath(
-          Path()
-            ..moveTo(70, 24.5)
-            ..lineTo(78, 20)
-            ..lineTo(77, 28)
-            ..close(),
-          _f(const Color(0xFFE8445A)));
     } else if (mode == 2) {
       // antifaz
       final r = RRect.fromRectAndRadius(
@@ -1357,25 +1329,33 @@ class _AnimalPainter extends CustomPainter {
     'a_tux': 0xFF1F1B2E,
   };
 
-  // mangas y lazo del kimono (por fuera del cuerpo)
+  // mangas: cubren el brazo y la pezuña asoma por el puño
   void _sleeves(Canvas c) {
+    final hl = _hand;
+    const sh = Offset(34, 58);
+    final ang = atan2(hl.dy - sh.dy, hl.dx - sh.dx);
+    final armLen = (hl - sh).distance;
     for (final id in acc) {
-      if (id == 'a_kimono') {
-        _both(c, () {
-          final sl = Path()
-            ..moveTo(31, 55)
-            ..lineTo(15, 60)
-            ..lineTo(13, 86)
-            ..quadraticBezierTo(21, 91, 29, 84)
-            ..close();
-          c.drawPath(sl, _f(const Color(0xFFE8445A)));
-          c.drawPath(
-              Path()..moveTo(13.4, 79)..lineTo(29.4, 77.5)..lineTo(29, 84)..quadraticBezierTo(21, 91, 13, 86)..close(),
-              _f(const Color(0xFFFFF4E0)));
-          c.drawPath(sl, _l(const Color(0xFFB82E44), 1.1));
-          c.drawCircle(const Offset(20, 67), 1.8, _f(const Color(0xFFFFB6D5)));
-          c.drawCircle(const Offset(25, 73), 1.5, _f(const Color(0xFFFFB6D5)));
-        });
+      final kim = id == 'a_kimono';
+      final v = kim ? 0xFFE8445A : _sleeveCol[id];
+      if (v == null) continue;
+      final col = Color(v);
+      final long = kim || id == 'a_sweater' || id == 'a_hoodie' || id == 'a_tux';
+      final len = armLen * (long ? .85 : .5) + 7;
+      final w = kim ? 17.0 : (long ? 11.5 : 12.5);
+      _both(c, () {
+        c.save();
+        c.translate(sh.dx - 1.5, sh.dy - 1);
+        c.rotate(ang);
+        final r = RRect.fromRectAndRadius(Rect.fromLTWH(-7, -w / 2, len + 7, w), Radius.circular(w * .42));
+        c.drawRRect(r, _f(col));
+        c.drawRRect(r, _l(p.line, 1));
+        c.drawRect(Rect.fromLTWH(len - 3.4, -w / 2 + .6, 3.4, w - 1.2),
+            _f(kim ? const Color(0xFFFFF4E0) : Color.lerp(col, Colors.black, .22)!));
+        if (kim) c.drawCircle(Offset(len / 2 - 2, 0), 1.7, _f(const Color(0xFFFFB6D5)));
+        c.restore();
+      });
+      if (kim) {
         final gold = _f(const Color(0xFFF2B134));
         for (final dx in [-1.0, 1.0]) {
           c.save();
@@ -1385,23 +1365,8 @@ class _AnimalPainter extends CustomPainter {
           c.drawOval(Rect.fromCenter(center: const Offset(6, 0), width: 11, height: 7), _l(const Color(0xFFC98A1E), 0.9));
           c.restore();
         }
-        c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(66, 74, 5, 5), const Radius.circular(1.5)),
-            _f(const Color(0xFFE8445A)));
-        continue;
+        c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(66, 74, 5, 5), const Radius.circular(1.5)), _f(const Color(0xFFE8445A)));
       }
-      final v = _sleeveCol[id];
-      if (v == null) continue;
-      final col = Color(v);
-      final long = id == 'a_sweater' || id == 'a_hoodie' || id == 'a_tux';
-      _both(c, () {
-        c.save();
-        c.translate(29.5, long ? 63 : 60);
-        c.rotate(0.35);
-        final r = Rect.fromCenter(center: Offset.zero, width: 15, height: long ? 26 : 17);
-        c.drawOval(r, _f(col));
-        c.drawOval(r, _l(p.line, 1));
-        c.restore();
-      });
     }
   }
 

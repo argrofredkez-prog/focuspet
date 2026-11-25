@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'runner.dart';
 import 'data.dart';
 import 'focus_animal.dart';
 
@@ -407,11 +408,12 @@ class _GameState extends State<GameScreen> with SingleTickerProviderStateMixin, 
                     alignment: const Alignment(0, 0.64),
                     child: Transform.rotate(
                       angle: ang,
-                      child: FocusAnimal(
+                      child: SideRunner(
                           animal: widget.animal,
                           size: _sz,
-                          aura: false,
-                          emotion: stumble > 0 ? 'sad' : null),
+                          phase: scroll / 18,
+                          air: y > 1,
+                          sad: stumble > 0),
                     ),
                   ),
                 ),

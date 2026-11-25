@@ -529,6 +529,16 @@ class _BgPainter extends CustomPainter {
     }
   }
 
+  void _toucan(Canvas c, Offset tb) {
+    c.drawLine(Offset(tb.dx - _w * .14, tb.dy + 18), Offset(tb.dx + _w * .16, tb.dy + 18), _st(const Color(0xFF8B5A3C), 5));
+    c.drawOval(Rect.fromCenter(center: tb, width: 26, height: 34), _p(const Color(0xFF2B2B3A)));
+    c.drawOval(Rect.fromCenter(center: tb.translate(0, 4), width: 14, height: 20), _p(Colors.white));
+    c.drawCircle(tb.translate(-6, -16), 9, _p(const Color(0xFF2B2B3A)));
+    c.drawPath(Path()..moveTo(tb.dx - 12, tb.dy - 20)..quadraticBezierTo(tb.dx - 40, tb.dy - 16, tb.dx - 38, tb.dy - 4)..quadraticBezierTo(tb.dx - 22, tb.dy - 8, tb.dx - 12, tb.dy - 12)..close(), _p(const Color(0xFFFF9F43)));
+    c.drawCircle(tb.translate(-8, -18), 2.2, _p(Colors.white));
+    c.drawCircle(tb.translate(-8, -18), 1, _p(const Color(0xFF3B2A3A)));
+  }
+
   void _cow(Canvas c, Offset o, double ph) {
     final b = sin(ph) * 2;
     for (final dx in [-18.0, -8.0, 8.0, 18.0]) {
@@ -700,7 +710,10 @@ class _BgPainter extends CustomPainter {
     return sp..close();
   }
 
+  double _w = 360;
+
   void _kawaii(Canvas c, Size s) {
+    _w = s.width;
     final w = s.width, h = s.height;
     switch (scene) {
       case 4: // mundo de caramelo
@@ -956,10 +969,10 @@ class _BgPainter extends CustomPainter {
           final y = h * .24 + ((_r(i, 2) + t * 5) % 1.0) * h * .6;
           c.drawLine(Offset(x, y), Offset(x, y + 26), _st(const Color(0xCCFFFFFF), 3));
         }
-        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(-30, h * .2, w * .4, h * .72), const Radius.circular(34)), _p(const Color(0xFF6DBF86)));
-        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * .62, h * .16, w * .5, h * .76), const Radius.circular(34)), _p(const Color(0xFF5BB377)));
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(-w * .15, h * .18, w * .52, h * .74), const Radius.circular(34)), _p(const Color(0xFF6DBF86)));
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * .63, h * .18, w * .52, h * .74), const Radius.circular(34)), _p(const Color(0xFF6DBF86)));
         _leaf(c, Offset(0, h * .3), 120, 0.3 + .08 * sin(t * 5 * 2 * pi), const Color(0xFF3DBB74));
-        _leaf(c, Offset(w, h * .26), 120, pi - 0.3 - .08 * sin(t * 5 * 2 * pi), const Color(0xFF3DBB74));
+        _leaf(c, Offset(w, h * .3), 120, pi - 0.3 - .08 * sin(t * 5 * 2 * pi), const Color(0xFF3DBB74));
         c.drawOval(Rect.fromLTWH(w * .08, h * .83, w * .84, h * .15), _p(const Color(0xFF5CC8F5)));
         for (int k = 0; k < 3; k++) {
           final q = (t * 3 + k / 3) % 1.0;
@@ -979,19 +992,18 @@ class _BgPainter extends CustomPainter {
           c.drawCircle(fg.translate(d * 8.0, -10), 1.6, _p(const Color(0xFF3B2A3A)));
         }
         c.drawArc(Rect.fromCenter(center: fg.translate(0, -1), width: 12, height: 8), 0.2, pi - 0.4, false, _st(const Color(0xFF2F7D4F), 1.6));
-        final tb = Offset(w * .84, h * .56 + 2 * sin(t * 20 * 2 * pi));
-        c.drawLine(Offset(w * .7, tb.dy + 18), Offset(w, tb.dy + 18), _st(const Color(0xFF8B5A3C), 5));
-        c.drawOval(Rect.fromCenter(center: tb, width: 26, height: 34), _p(const Color(0xFF2B2B3A)));
-        c.drawOval(Rect.fromCenter(center: tb.translate(0, 4), width: 14, height: 20), _p(Colors.white));
-        c.drawCircle(tb.translate(-6, -16), 9, _p(const Color(0xFF2B2B3A)));
-        c.drawPath(Path()..moveTo(tb.dx - 12, tb.dy - 20)..quadraticBezierTo(tb.dx - 40, tb.dy - 16, tb.dx - 38, tb.dy - 4)..quadraticBezierTo(tb.dx - 22, tb.dy - 8, tb.dx - 12, tb.dy - 12)..close(), _p(const Color(0xFFFF9F43)));
-        c.drawCircle(tb.translate(-8, -18), 2.2, _p(Colors.white));
-        c.drawCircle(tb.translate(-8, -18), 1, _p(const Color(0xFF3B2A3A)));
+        final tby = h * .56 + 2 * sin(t * 20 * 2 * pi);
+        _toucan(c, Offset(w * .84, tby));
+        c.save();
+        c.translate(w, 0);
+        c.scale(-1, 1);
+        _toucan(c, Offset(w * .84, tby));
+        c.restore();
         _hill(c, s, const Color(0xFF3FA34D), 0.97, 4, 1);
         break;
       case 13: // pradera florida
         _gradBg(c, s, const [Color(0xFF8ED8FF), Color(0xFFD9F4FF), Color(0xFFD8F5B4)]);
-        final sc = Offset(w * .8, h * .12);
+        final sc = Offset(w * .5, h * .12);
         for (int k = 0; k < 12; k++) {
           final an = k * pi / 6 + t * 2 * pi;
           c.drawLine(sc + Offset(cos(an) * 34, sin(an) * 34), sc + Offset(cos(an) * 48, sin(an) * 48), _st(const Color(0xFFFFD84D), 4));
@@ -1253,7 +1265,7 @@ class _BgPainter extends CustomPainter {
         {
           _gradBg(c, s, const [Color(0xFF14123A), Color(0xFF2B1F63), Color(0xFF5A3A8F)]);
           _sparkles(c, s, Colors.white, 14);
-          final mo = Offset(w * .82, h * .13);
+          final mo = Offset(w * .5, h * .13);
           c.drawCircle(mo, 30, _p(const Color(0x33FFF3B0)));
           c.drawCircle(mo, 24, _p(const Color(0xFFFFF3B0)));
           _kface(c, mo, 24);
@@ -1295,9 +1307,10 @@ class _BgPainter extends CustomPainter {
         {
           _gradBg(c, s, const [Color(0xFFA8DCFF), Color(0xFFE8F7FF), Color(0xFFBFEAD8)]);
           _clouds(c, s, 3, 220);
-          c.drawPath(Path()..moveTo(0, h * .5)..lineTo(w * .22, h * .22)..lineTo(w * .45, h * .5)..close(), _p(const Color(0xFF8FA9D9)));
-          c.drawPath(Path()..moveTo(w * .3, h * .5)..lineTo(w * .62, h * .16)..lineTo(w * .95, h * .5)..close(), _p(const Color(0xFF7691C8)));
-          c.drawPath(Path()..moveTo(w * .62 - 24, h * .16 + 40)..lineTo(w * .62, h * .16)..lineTo(w * .62 + 24, h * .16 + 40)..lineTo(w * .62 + 8, h * .16 + 32)..lineTo(w * .62, h * .16 + 42)..lineTo(w * .62 - 8, h * .16 + 32)..close(), _p(Colors.white));
+          c.drawPath(Path()..moveTo(-w * .1, h * .5)..lineTo(w * .17, h * .27)..lineTo(w * .44, h * .5)..close(), _p(const Color(0xFF8FA9D9)));
+          c.drawPath(Path()..moveTo(w * .56, h * .5)..lineTo(w * .83, h * .27)..lineTo(w * 1.1, h * .5)..close(), _p(const Color(0xFF8FA9D9)));
+          c.drawPath(Path()..moveTo(w * .2, h * .5)..lineTo(w * .5, h * .15)..lineTo(w * .8, h * .5)..close(), _p(const Color(0xFF7691C8)));
+          c.drawPath(Path()..moveTo(w * .5 - 26, h * .15 + 42)..lineTo(w * .5, h * .15)..lineTo(w * .5 + 26, h * .15 + 42)..lineTo(w * .5 + 9, h * .15 + 33)..lineTo(w * .5, h * .15 + 44)..lineTo(w * .5 - 9, h * .15 + 33)..close(), _p(Colors.white));
           for (final px in [0.04, 0.11, 0.89, 0.96]) {
             c.drawPath(Path()..moveTo(w * px - 16, h * .5)..lineTo(w * px, h * .34)..lineTo(w * px + 16, h * .5)..close(), _p(const Color(0xFF3FA36A)));
           }
@@ -1376,7 +1389,7 @@ class _BgPainter extends CustomPainter {
       case 22: // playa soleada
         {
           _gradBg(c, s, const [Color(0xFF7ED6FF), Color(0xFFBDEBFF), Color(0xFFFFF3C9)]);
-          final sn = Offset(w * .84, h * .12);
+          final sn = Offset(w * .5, h * .12);
           for (int k = 0; k < 12; k++) {
             final an = k * pi / 6 + t * 2 * pi;
             c.drawLine(sn + Offset(cos(an) * 30, sin(an) * 30), sn + Offset(cos(an) * 42, sin(an) * 42), _st(const Color(0xFFFFD84D), 4));

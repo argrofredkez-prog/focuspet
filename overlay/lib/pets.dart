@@ -16,9 +16,9 @@ const petLabels = {
   'fenix': 'Fénix 🔥',
 };
 const petDefaultColor = {
-  'mariposa': 0xFFB59CFF,
+  'mariposa': 0xFF3FC1C9,
   'buho': 0xFF6C8EBF,
-  'abeja': 0xFFFFD84D,
+  'abeja': 0xFFFFE100,
   'fenix': 0xFFFF6B3D,
 };
 const petDefaultName = {
@@ -249,36 +249,52 @@ class _PetPainter extends CustomPainter {
     c.translate(0, -5 * hop);
     switch (kind) {
       case 'mariposa':
-        final fm = .35 + .65 * sin(t * 4 * pi).abs();
+        final fm = .45 + .55 * sin(t * 4 * pi).abs();
+        const pink = Color(0xFFFF9AB8);
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50, 54);
+          c.translate(50, 56);
           c.scale(d * fm, 1);
           final up = Path()
-            ..moveTo(0, -4)
-            ..cubicTo(30, -58, 70, -26, 44, 10)
-            ..cubicTo(30, 16, 10, 6, 0, 2)
+            ..moveTo(0, -2)
+            ..cubicTo(10, -66, 62, -56, 52, -14)
+            ..cubicTo(46, 6, 18, 8, 0, 4)
             ..close();
           final lo = Path()
-            ..moveTo(0, 4)
-            ..cubicTo(34, 6, 56, 34, 36, 50)
-            ..cubicTo(20, 58, 4, 34, 0, 12)
+            ..moveTo(0, 6)
+            ..cubicTo(40, 2, 58, 24, 44, 44)
+            ..cubicTo(32, 62, 8, 48, 0, 16)
             ..close();
           _shape(c, up, col);
-          _shape(c, lo, _w(col, .4));
-          c.drawCircle(const Offset(34, -20), 7, _f(const Color(0xCCFFFFFF)));
-          c.drawCircle(const Offset(34, -20), 3.4, _f(_w(col, .2)));
-          c.drawCircle(const Offset(24, 34), 4.5, _f(const Color(0xB3FFFFFF)));
-          c.drawPath(Path()..moveTo(2, 0)..quadraticBezierTo(22, -12, 36, -30), _l(_d(col, .25).withAlpha(120), 1));
+          _shape(c, lo, _w(col, .15));
+          c.drawPath(Path()..moveTo(4, -6)..cubicTo(14, -44, 40, -42, 36, -16)..cubicTo(30, -4, 14, -2, 4, 0)..close(), _f(_w(col, .6)));
+          c.drawPath(Path()..moveTo(4, 8)..cubicTo(26, 6, 38, 22, 28, 36)..cubicTo(18, 44, 8, 34, 4, 18)..close(), _f(_w(col, .6)));
+          c.drawPath(Path()..moveTo(6, -10)..quadraticBezierTo(22, -26, 34, -34)..quadraticBezierTo(24, -14, 6, -6)..close(), _f(pink));
+          c.drawCircle(const Offset(40, -44), 8, _f(pink));
+          c.drawArc(Rect.fromCircle(center: const Offset(40, -44), radius: 4.6), .4, 5.0, false, _l(_d(pink, .35), 1.3));
+          c.drawArc(Rect.fromCircle(center: const Offset(40, -44), radius: 2.2), 1.0, 4.6, false, _l(_d(pink, .35), 1.2));
+          for (final o in const [Offset(46, 24), Offset(40, 33), Offset(32, 40), Offset(24, 44)]) {
+            c.drawCircle(o, 2.6, _f(const Color(0xFFFF7A90)));
+            c.drawCircle(o, 2.6, _l(_d(col, .4), .8));
+          }
+          c.drawPath(Path()..moveTo(6, -4)..quadraticBezierTo(24, -2, 44, -20), _l(_d(col, .3).withAlpha(140), 1));
           c.restore();
         }
-        _shape(c, Path()..addOval(Rect.fromCenter(center: const Offset(50, 64), width: 11, height: 40)), _d(col, .3));
-        c.drawPath(Path()..moveTo(44, 31)..quadraticBezierTo(38, 14, 32, 10), _l(_d(col), 1.8));
-        c.drawPath(Path()..moveTo(56, 31)..quadraticBezierTo(62, 14, 68, 10), _l(_d(col), 1.8));
-        c.drawPath(_heart(const Offset(31, 9), 3.2), _f(const Color(0xFFFF6F9F)));
-        c.drawPath(_heart(const Offset(69, 9), 3.2), _f(const Color(0xFFFF6F9F)));
-        _blob(c, Rect.fromCenter(center: const Offset(50, 40), width: 28, height: 26), _w(col, .7));
-        _face(c, const Offset(50, 41), 5.6, s: .85);
+        final bdy = Path()..addOval(Rect.fromCenter(center: const Offset(50, 66), width: 12, height: 40));
+        _shape(c, bdy, const Color(0xFFFFD9A0));
+        c.save();
+        c.clipPath(bdy);
+        for (final y in [56.0, 64.0, 72.0, 80.0]) {
+          c.drawRect(Rect.fromLTWH(40, y, 20, 3.2), _f(const Color(0xFFFF9AA8)));
+        }
+        c.restore();
+        c.drawPath(bdy, _l(_d(const Color(0xFFFFD9A0), .45), 1.5));
+        c.drawPath(Path()..moveTo(46, 34)..quadraticBezierTo(40, 18, 34, 14)..quadraticBezierTo(30, 10, 33, 8)..quadraticBezierTo(37, 9, 35, 12), _l(ink, 1.5));
+        c.drawPath(Path()..moveTo(54, 34)..quadraticBezierTo(60, 18, 66, 14)..quadraticBezierTo(70, 10, 67, 8)..quadraticBezierTo(63, 9, 65, 12), _l(ink, 1.5));
+        c.drawCircle(const Offset(31, 9), 2.3, _f(const Color(0xFF7EC8E3)));
+        c.drawCircle(const Offset(69, 9), 2.3, _f(const Color(0xFF7EC8E3)));
+        _blob(c, Rect.fromCenter(center: const Offset(50, 42), width: 21, height: 19), const Color(0xFF7EC8E3));
+        _face(c, const Offset(50, 42), 4.6, s: .62);
         break;
       case 'buho':
         final fl = .12 * sin(t * 2 * pi);
@@ -325,29 +341,45 @@ class _PetPainter extends CustomPainter {
         }
         break;
       case 'abeja':
-        final fw = .6 + .4 * sin(t * 6 * pi).abs();
+        final fw = .75 + .25 * sin(t * 6 * pi).abs();
         for (final d in [-1.0, 1.0]) {
           c.save();
-          c.translate(50 + d * 15, 34);
-          c.rotate(d * .55);
-          _shape(c, Path()..addOval(Rect.fromCenter(center: Offset(0, -10 * fw), width: 22, height: 30 * fw)), const Color(0xFFD6EFFF));
+          c.translate(50 + d * 17, 68);
+          c.rotate(d * (.5 + .12 * sin(t * 6 * pi)));
+          _shape(c, Path()..addOval(Rect.fromCenter(center: Offset(d * 13 * fw, 0), width: 30 * fw, height: 19)), const Color(0xFFA8DCE0));
           c.restore();
         }
-        c.drawPath(Path()..moveTo(41, 31)..quadraticBezierTo(35, 12, 27, 14), _l(ink, 2));
-        c.drawPath(Path()..moveTo(59, 31)..quadraticBezierTo(65, 12, 73, 14), _l(ink, 2));
-        c.drawPath(_heart(const Offset(26, 13), 3.4), _f(const Color(0xFFFF6F9F)));
-        c.drawPath(_heart(const Offset(74, 13), 3.4), _f(const Color(0xFFFF6F9F)));
-        final bd = Rect.fromCenter(center: const Offset(50, 64), width: 70, height: 60);
+        c.drawPath(Path()..moveTo(38, 24)..quadraticBezierTo(30, 8, 22, 8), _l(ink, 2));
+        c.drawPath(Path()..moveTo(62, 24)..quadraticBezierTo(70, 8, 78, 8), _l(ink, 2));
+        c.drawCircle(const Offset(20, 8), 4.5, _f(ink));
+        c.drawCircle(const Offset(80, 8), 4.5, _f(ink));
+        c.drawPath(Path()..moveTo(46, 90)..lineTo(50, 101)..lineTo(54, 90)..close(), _f(ink));
+        final bd = Rect.fromCenter(center: const Offset(50, 72), width: 36, height: 40);
         _blob(c, bd, col);
         c.save();
         c.clipPath(Path()..addOval(bd));
-        for (final y in [70.0, 82.0]) {
-          c.drawPath(Path()..moveTo(10, y)..quadraticBezierTo(50, y + 7, 90, y)..lineTo(90, y + 7)..quadraticBezierTo(50, y + 14, 10, y + 7)..close(), _f(const Color(0xFF4A3B5C)));
+        for (final y in [63.0, 75.0, 87.0]) {
+          c.drawRect(Rect.fromLTWH(30, y, 40, 6.5), _f(ink));
         }
         c.restore();
-        c.drawOval(bd, _l(_d(col), 1.7));
-        c.drawPath(Path()..moveTo(50, 93)..lineTo(46, 100)..lineTo(54, 100)..close(), _f(ink));
-        _face(c, const Offset(50, 56), 12);
+        c.drawOval(bd, _l(_d(col), 1.6));
+        final hd = Rect.fromCenter(center: const Offset(50, 40), width: 68, height: 52);
+        _blob(c, hd, col);
+        for (final d in [-1.0, 1.0]) {
+          final e = Offset(50 + d * 16, 33);
+          c.drawOval(Rect.fromCenter(center: e, width: 25, height: 27), _f(Colors.white));
+          c.drawOval(Rect.fromCenter(center: e, width: 25, height: 27), _l(const Color(0xFFD9E6F0), 1));
+          c.drawCircle(e.translate(0, -.5), 8.8, _f(ink));
+          c.drawCircle(e.translate(-3.2, -4), 3.5, _f(Colors.white));
+          c.drawCircle(e.translate(3, 2.6), 1.8, _f(Colors.white));
+          c.drawOval(Rect.fromCenter(center: Offset(50 + d * 28, 50), width: 9, height: 5), _f(const Color(0x66FF8FA8)));
+        }
+        final mouth = Path()
+          ..moveTo(40, 50)
+          ..quadraticBezierTo(50, 64, 60, 50)
+          ..close();
+        c.drawPath(mouth, _f(const Color(0xFFE8374A)));
+        c.drawPath(mouth, _l(ink, 1.4));
         break;
       case 'fenix':
         const gold = Color(0xFFFFC93C);
