@@ -106,17 +106,17 @@ class _RunnerPainter extends CustomPainter {
         for (int i = 0; i < cols.length; i++) {
           final tp = Path()
             ..moveTo(24, 56)
-            ..cubicTo(12.0 - i, 54 + sway, 4, 66.0 + i * 2 + sway, 8.0 + i * 2, 84 - i);
+            ..cubicTo(12.0 - i, 54 + sway, 4, 66.0 + i * 2 + sway, 8.0 + i * 2, 84.0 - i);
           c.drawPath(tp, _l(line, 6.4));
           c.drawPath(tp, _l(cols[i], 4.4));
         }
         break;
       case Animal.tigre:
-        final tp = Path()
+        final tigerTail = Path()
           ..moveTo(24, 58)
           ..cubicTo(10, 58 + sway * .3, 4, 44, 12, 34);
-        c.drawPath(tp, _l(line, 7));
-        c.drawPath(tp, _l(base, 5));
+        c.drawPath(tigerTail, _l(line, 7));
+        c.drawPath(tigerTail, _l(base, 5));
         c.drawPath(Path()..moveTo(7, 42)..cubicTo(6, 38, 9, 36, 12, 34), _l(const Color(0xFF3A2A1E), 5));
         break;
       default:
