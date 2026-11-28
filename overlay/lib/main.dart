@@ -872,9 +872,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
         if (mounted && emotion == 'focus') setState(() => emotion = null);
       });
     }
-    _ch.invokeMethod('setDnd', store.blockNotifs);
+    // modo flexible: ni "No molestar" ni apagar la pantalla (se pueden ver vídeos en las apps permitidas)
+    _ch.invokeMethod('setDnd', _soft ? false : store.blockNotifs);
     _ch.invokeMethod('setBlocking', true);
-    _ch.invokeMethod('lockScreen'); // apaga la pantalla
+    if (!_soft) _ch.invokeMethod('lockScreen'); // apaga la pantalla
     _scheduleEnd();
     _t = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     if (widget.mode != 2) {
@@ -930,7 +931,7 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
         emotion = null;
         speech = null;
       });
-      if (!done && pauseStart == null) _ch.invokeMethod('lockScreen');
+      if (!done && pauseStart == null && !_soft) _ch.invokeMethod('lockScreen');
     });
   }
 
@@ -1036,6 +1037,8 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     setState(() => pauseStart = null);
   }
 
+  bool get _soft => widget.mode != 2 && !widget.strict;
+
   Future<void> _complete() async {
     if (done) return;
     done = true;
@@ -1056,6 +1059,10 @@ class _FocusState extends State<FocusScreen> with WidgetsBindingObserver {
     setState(() => emotion = 'happy');
     await Future.delayed(const Duration(milliseconds: 3200));
     if (!mounted) return;
+    if (widget.mode == 0) {
+      await dailyReward(context);
+      if (!mounted) return;
+    }
     final again = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(

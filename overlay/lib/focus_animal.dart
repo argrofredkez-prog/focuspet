@@ -47,9 +47,12 @@ class FocusAnimal extends StatefulWidget {
   State<FocusAnimal> createState() => _FocusAnimalState();
 }
 
-class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStateMixin {
+class _FocusAnimalState extends State<FocusAnimal> with TickerProviderStateMixin {
   Duration _dur(int m) => Duration(milliseconds: m == 1 ? 2000 : (m == 2 ? 6000 : 4000));
   late final AnimationController _c = AnimationController(vsync: this, duration: _dur(widget.mode))..repeat();
+  // 0..1: se pone las gafas (estudiar) o el antifaz (dormir) al cambiar de modo
+  late final AnimationController _put =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1200), value: 1);
 
   @override
   void didUpdateWidget(FocusAnimal old) {
@@ -57,11 +60,13 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
     if (old.mode != widget.mode) {
       _c.duration = _dur(widget.mode);
       _c.repeat();
+      _put.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
+    _put.dispose();
     _c.dispose();
     super.dispose();
   }
@@ -115,7 +120,7 @@ class _FocusAnimalState extends State<FocusAnimal> with SingleTickerProviderStat
                     CustomPaint(
                         size: Size.square(sz),
                         painter: _AnimalPainter(
-                            widget.animal, widget.mode, blink, widget.acc, widget.emotion, clap)),
+                            widget.animal, widget.mode, blink, widget.acc, widget.emotion, clap, _put.value)),
                     for (final id in widget.acc)
                       if (id.startsWith('c_')) _custom(id, sz),
                   ]),
@@ -209,7 +214,8 @@ class _AnimalPainter extends CustomPainter {
   final List<String> acc;
   final String? emo;
   final double clap; // aplauso: -1 = no, 0..1 = ciclo
-  _AnimalPainter(this.a, this.mode, this.blink, this.acc, this.emo, this.clap);
+  final double put; // 0..1 animación de ponerse las gafas / el antifaz
+  _AnimalPainter(this.a, this.mode, this.blink, this.acc, this.emo, this.clap, this.put);
 
   _Pal get p => _pals[a]!;
   Color get _iris => a == Animal.cerdo
@@ -658,21 +664,34 @@ class _AnimalPainter extends CustomPainter {
   }
 
   // ---------------- almohada (dormir): queda entre los brazos ----------------
+  // almohada grande que tapa las patas y desea buenas noches
   void _pillow(Canvas c) {
     c.save();
-    c.translate(50, 74);
-    c.rotate(-0.06);
-    final r = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset.zero, width: 36, height: 21), const Radius.circular(9));
-    c.drawRRect(r, _g(r.outerRect, const Color(0xFFEAF3FF), const Color(0xFF9CC4F5)));
-    c.drawRRect(r, _l(const Color(0xFF5B8DC9), 1.1));
+    c.translate(50, 72);
+    c.rotate(-0.04);
+    final r = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 48, height: 25), const Radius.circular(11));
+    c.drawRRect(r.shift(const Offset(0, 1.2)), _f(const Color(0x22000000)));
+    c.drawRRect(r, _g(r.outerRect, const Color(0xFFF4F8FF), const Color(0xFF9CC4F5)));
+    c.drawRRect(r, _l(const Color(0xFF5B8DC9), 1.2));
     c.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromCenter(center: Offset.zero, width: 30, height: 15), const Radius.circular(7)),
-        _l(const Color(0x88FFFFFF), 0.8));
-    c.drawPath(_spark(const Offset(-8, -1), 2.4), _f(const Color(0xFFFFE066)));
-    c.drawPath(_spark(const Offset(7, 2), 1.8), _f(const Color(0xFFFFE066)));
+        RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: 42, height: 19), const Radius.circular(8)),
+        _l(const Color(0x99FFFFFF), 0.8));
+    for (final x in [-22.0, 22.0]) {
+      c.drawCircle(Offset(x, 0), 1.1, _f(const Color(0xFF5B8DC9)));
+    }
+    c.drawCircle(const Offset(-17, -1), 4, _f(const Color(0xFFFFE066)));
+    c.drawCircle(const Offset(-15.2, -2.2), 3.5, _f(const Color(0xFFD5E6FA)));
+    _pilText(c, 'Buenas noches', const Offset(3, 0), 5.2, const Color(0xFF3A5A8C));
+    c.drawPath(_spark(const Offset(18, -6), 1.6), _f(const Color(0xFFFFE066)));
     c.restore();
+  }
+
+  void _pilText(Canvas c, String t, Offset ctr, double fs, Color col) {
+    final tp = TextPainter(
+        text: TextSpan(text: t, style: TextStyle(fontSize: fs, fontWeight: FontWeight.w800, color: col)),
+        textDirection: TextDirection.ltr)
+      ..layout();
+    tp.paint(c, ctr - Offset(tp.width / 2, tp.height / 2));
   }
 
   // ---------------- libro (estudiar) ----------------
@@ -707,6 +726,7 @@ class _AnimalPainter extends CustomPainter {
 
   // pezuñas / zarpas: por encima de las mangas, asoman por el puño
   void _paws(Canvas c) {
+    if (mode == 2) return; // la almohada las tapa
     final hl = _hand;
     _both(c, () => _paw(c, hl));
   }
@@ -859,7 +879,7 @@ class _AnimalPainter extends CustomPainter {
         break;
     }
 
-    final closed = (mode == 2 && emo == null) || blink;
+    final closed = (mode == 2 && emo == null && put > .6) || blink;
     _both(c, () {
       const e = Offset(39, 31);
       if (emo == 'happy') {
@@ -946,6 +966,28 @@ class _AnimalPainter extends CustomPainter {
 
   // ---------------- prendas de cada estado ----------------
   void _outfit(Canvas c) {
+    final moving = put < 1 && (mode == 0 || mode == 2);
+    if (moving) {
+      final e = Curves.easeOutBack.transform(min(1.0, max(0.0, put)));
+      c.save();
+      c.translate(50, 31 + (1 - e) * (mode == 0 ? -34.0 : -22.0));
+      c.rotate((1 - e) * (mode == 0 ? .5 : 0.0));
+      c.scale(1 + (1 - e) * (mode == 2 ? .25 : .35), 1 + (1 - e) * .15);
+      c.translate(-50, -31);
+    }
+    _outfitBody(c);
+    if (moving) {
+      c.restore();
+      if (put > .7) {
+        final k = (put - .7) / .3;
+        c.drawPath(_spark(const Offset(29, 22), 3.2 * (1 - k)), _f(const Color(0xFFFFF3B0)));
+        c.drawPath(_spark(const Offset(72, 20), 2.6 * (1 - k)), _f(Colors.white));
+        c.drawPath(_spark(const Offset(50, 15), 2.2 * (1 - k)), _f(const Color(0xFFFFF3B0)));
+      }
+    }
+  }
+
+  void _outfitBody(Canvas c) {
     if (mode == 0) {
       // gafas de estudio transparentes
       _both(c, () {

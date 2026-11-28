@@ -68,7 +68,7 @@ class BlockerService : AccessibilityService() {
         val pkg = e.packageName?.toString() ?: return
         if (pkg == packageName || pkg in allowed || pkg in extra || pkg.contains("inputmethod")) return
         // modo flexible: se puede usar el móvil (pantalla de inicio / lista de apps) para abrir las permitidas
-        if (extra.isNotEmpty() && pkg in launchers) return
+        if (extra.isNotEmpty() && (pkg in launchers || pkg == "android" || pkg.startsWith("com.google.android.gms"))) return
         bringAppToFront()
     }
 

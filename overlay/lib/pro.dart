@@ -276,3 +276,42 @@ class _WeekPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WeekPainter o) => true;
 }
+
+/// Recompensa al completar la meta del día (una vez al día): monedas dobles u objeto del catálogo.
+Future<void> dailyReward(BuildContext context) async {
+  final now = DateTime.now();
+  final key = _dk(now);
+  if (studyOn(now) < goalMin || store.p.getString('reward_day') == key) return;
+  store.p.setString('reward_day', key);
+  final rnd = Random();
+  final streak = streakDays();
+  final pool = [
+    for (final it in catalog)
+      if (it.kind == 'acc' && (it.slot == 'head' || it.slot == 'body' || it.slot == 'feet') && store.inv(it.id) < 1) it
+  ];
+  final item = (pool.isNotEmpty && (streak % 7 == 0 || rnd.nextBool())) ? pool[rnd.nextInt(pool.length)] : null;
+  String emoji, text;
+  if (item != null) {
+    store.setInv(item.id, 1);
+    emoji = item.emoji;
+    text = '¡Has ganado ${item.name}! Ya está en tu tienda.';
+  } else {
+    final bonus = max(10, (store.minsToday(0) / 3).round());
+    store.coins = store.coins + bonus;
+    emoji = '🪙';
+    text = '¡Monedas dobles! +$bonus 🪙';
+  }
+  if (!context.mounted) return;
+  await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+            title: const Text('🎁 ¡Recompensa de racha!'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(emoji, style: const TextStyle(fontSize: 64)),
+              const SizedBox(height: 8),
+              Text(text, textAlign: TextAlign.center),
+              Text('🔥 $streak días de racha', style: const TextStyle(fontSize: 12)),
+            ]),
+            actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('¡Genial!'))],
+          ));
+}

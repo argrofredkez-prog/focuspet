@@ -6,8 +6,8 @@ import android.media.AudioTrack
 import kotlin.math.min
 import kotlin.math.pow
 
-// Música de fondo estilo videojuego clásico (chiptune), generada en el móvil.
-// Cada nivel estrena melodía (todas de dominio público) y cada 4 niveles sube el ritmo.
+// Música de fondo estilo videojuego de plataformas (chiptune), generada en el móvil.
+// Cada nivel estrena melodía (composiciones propias) y cada 4 niveles sube el ritmo.
 object ChipMusic {
     private const val SR = 22050
 
@@ -22,61 +22,61 @@ object ChipMusic {
     )
 
     private val songs = arrayOf(
-        // «Korobeiniki» (canción popular rusa)
+        // tema alegre en Do mayor (estilo plataformas)
         Song(
             arrayOf(
-                76 to 2, 71 to 1, 72 to 1, 74 to 2, 72 to 1, 71 to 1,
-                69 to 2, 69 to 1, 72 to 1, 76 to 2, 74 to 1, 72 to 1,
-                71 to 3, 72 to 1, 74 to 2, 76 to 2,
-                72 to 2, 69 to 2, 69 to 4,
-                74 to 3, 77 to 1, 81 to 2, 79 to 1, 77 to 1,
-                76 to 3, 72 to 1, 76 to 2, 74 to 1, 72 to 1,
-                71 to 2, 71 to 1, 72 to 1, 74 to 2, 76 to 2,
-                72 to 2, 69 to 2, 69 to 4
+                67 to 1, 72 to 1, 76 to 1, 79 to 2, 76 to 1, 72 to 1, 76 to 1,
+                77 to 1, 74 to 1, 71 to 1, 74 to 2, 77 to 1, 74 to 1, 71 to 1,
+                76 to 1, 79 to 1, 84 to 2, 83 to 1, 79 to 1, 76 to 2,
+                74 to 2, 76 to 1, 74 to 1, 72 to 4,
+                69 to 1, 72 to 1, 76 to 1, 81 to 2, 79 to 1, 76 to 1, 72 to 1,
+                71 to 1, 74 to 1, 79 to 1, 83 to 2, 81 to 1, 79 to 1, 74 to 1,
+                72 to 1, 76 to 1, 79 to 1, 84 to 2, 83 to 1, 81 to 1, 79 to 1,
+                77 to 2, 74 to 2, 72 to 4
             ),
-            8, intArrayOf(52, 57, 52, 57, 50, 48, 52, 57), 0.2, 1, 12
+            8, intArrayOf(48, 55, 48, 55, 57, 55, 48, 53), 0.18, 1, 12
         ),
-        // «Minueto en Sol» (Petzold)
+        // en Sol mayor, más rápido
         Song(
             arrayOf(
-                74 to 2, 67 to 1, 69 to 1, 71 to 1, 72 to 1,
-                74 to 2, 67 to 2, 67 to 2,
-                76 to 2, 72 to 1, 74 to 1, 76 to 1, 78 to 1,
-                79 to 2, 67 to 2, 67 to 2,
-                72 to 2, 74 to 1, 72 to 1, 71 to 1, 69 to 1,
-                71 to 2, 72 to 1, 71 to 1, 69 to 1, 67 to 1,
-                66 to 2, 67 to 1, 69 to 1, 71 to 1, 67 to 1,
-                69 to 6
+                74 to 1, 79 to 1, 83 to 1, 79 to 1, 74 to 2, 79 to 2,
+                76 to 1, 79 to 1, 83 to 2, 81 to 2, 79 to 2,
+                78 to 1, 81 to 1, 83 to 1, 81 to 1, 78 to 2, 74 to 2,
+                79 to 4, 74 to 2, 71 to 2,
+                71 to 1, 74 to 1, 79 to 1, 74 to 1, 71 to 2, 74 to 2,
+                72 to 1, 76 to 1, 79 to 2, 76 to 2, 72 to 2,
+                74 to 1, 78 to 1, 81 to 2, 78 to 2, 74 to 2,
+                79 to 2, 74 to 2, 67 to 4
             ),
-            6, intArrayOf(55, 55, 48, 55, 48, 55, 50, 55), 0.22, 1, 12
+            8, intArrayOf(55, 48, 50, 55, 55, 48, 50, 55), 0.16, 1, 12
         ),
-        // «Para Elisa» (Beethoven)
+        // en Fa mayor, saltarín
         Song(
             arrayOf(
-                76 to 1, 75 to 1, 76 to 1, 75 to 1, 76 to 1, 71 to 1,
-                74 to 1, 72 to 1, 69 to 2, 0 to 1, 60 to 1,
-                64 to 1, 69 to 1, 71 to 2, 0 to 1, 64 to 1,
-                68 to 1, 71 to 1, 72 to 2, 0 to 1, 64 to 1,
-                76 to 1, 75 to 1, 76 to 1, 75 to 1, 76 to 1, 71 to 1,
-                74 to 1, 72 to 1, 69 to 2, 0 to 1, 60 to 1,
-                64 to 1, 69 to 1, 71 to 2, 0 to 1, 64 to 1,
-                72 to 1, 71 to 1, 69 to 4
+                77 to 2, 72 to 1, 69 to 1, 72 to 2, 77 to 2,
+                76 to 1, 79 to 1, 81 to 2, 79 to 2, 76 to 2,
+                74 to 2, 77 to 1, 81 to 1, 77 to 2, 74 to 2,
+                72 to 2, 76 to 2, 72 to 4,
+                69 to 1, 72 to 1, 77 to 2, 72 to 2, 69 to 2,
+                70 to 1, 74 to 1, 77 to 2, 74 to 2, 70 to 2,
+                72 to 1, 76 to 1, 79 to 2, 76 to 2, 72 to 2,
+                77 to 4, 72 to 2, 65 to 2
             ),
-            6, intArrayOf(57, 57, 52, 57, 57, 57, 52, 57), 0.13, 2, 0
+            8, intArrayOf(53, 48, 50, 48, 53, 58, 48, 53), 0.19, 1, 12
         ),
-        // «Himno a la alegría» (Beethoven)
+        // carrera de escalas y arpegios
         Song(
             arrayOf(
-                76 to 2, 76 to 2, 77 to 2, 79 to 2,
-                79 to 2, 77 to 2, 76 to 2, 74 to 2,
-                72 to 2, 72 to 2, 74 to 2, 76 to 2,
-                76 to 3, 74 to 1, 74 to 4,
-                76 to 2, 76 to 2, 77 to 2, 79 to 2,
-                79 to 2, 77 to 2, 76 to 2, 74 to 2,
-                72 to 2, 72 to 2, 74 to 2, 76 to 2,
-                74 to 3, 72 to 1, 72 to 4
+                72 to 1, 74 to 1, 76 to 1, 77 to 1, 79 to 1, 77 to 1, 76 to 1, 74 to 1,
+                76 to 1, 79 to 1, 84 to 2, 79 to 1, 76 to 1, 79 to 2,
+                74 to 1, 76 to 1, 77 to 1, 79 to 1, 81 to 1, 79 to 1, 77 to 1, 76 to 1,
+                77 to 1, 81 to 1, 86 to 2, 81 to 1, 77 to 1, 74 to 2,
+                76 to 1, 77 to 1, 79 to 1, 81 to 1, 83 to 1, 81 to 1, 79 to 1, 77 to 1,
+                79 to 2, 76 to 2, 72 to 2, 76 to 2,
+                81 to 1, 79 to 1, 77 to 1, 76 to 1, 74 to 2, 71 to 2,
+                72 to 4, 67 to 2, 72 to 2
             ),
-            8, intArrayOf(48, 55, 48, 55, 48, 55, 48, 55), 0.22, 2, 0
+            8, intArrayOf(48, 48, 53, 50, 48, 48, 55, 48), 0.15, 1, 12
         )
     )
 
